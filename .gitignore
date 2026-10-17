@@ -1,5 +1,35 @@
+# Original entries
 .DS_Store
 data/
 ZABBIX_doc/
 todo.md
 training.ipynb
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ML intermediate outputs (regenerable)
+ml/work/
+
+# Node / frontend
+node_modules/
+dist/
+*.tsbuildinfo
+coverage/
+
+# Env / editor / logs
+.env
+.env.*
+!.env.example
+*.log
+.idea/
+.vscode/

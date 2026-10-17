@@ -1,0 +1,18 @@
+# Build context = repo root. Keep it small.
+.git/
+data/
+ZABBIX_doc/
+ml/work/
+**/.venv/
+**/venv/
+**/node_modules/
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/.mypy_cache/
+**/dist/
+**/coverage/
+**/*.log
+**/.DS_Store
+.env
+artifacts/
