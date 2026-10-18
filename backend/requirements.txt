@@ -1,0 +1,14 @@
+# Runtime deps for api + worker (tested versions). netad_ml is installed from ../ml.
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+starlette==0.41.3
+pydantic==2.14.4
+pydantic-settings==2.6.1
+pydantic_core==2.50.5
+SQLAlchemy==2.0.36
+asyncpg==0.30.0
+alembic==1.14.0
+httpx==0.28.1
+greenlet==3.5.6
+uvloop==0.23.0
+httptools==0.9.0
