@@ -1,0 +1,63 @@
+# Reproducible defence-demo scenario for the mock Zabbix server.
+# Telemetry is a pure function of (seed, host, time): any query is repeatable.
+seed: 2026
+window_seconds: 2            # one flow-feature window per host every N seconds
+metric_interval_seconds: 10  # numeric items (bandwidth, CPU, states)
+backfill_seconds: 3600       # benign history available before the scenario starts
+loop: true                   # repeat the phase list forever
+
+hosts:
+  - {hostid: "10542", host: pfsense-edge, name: pfSense Edge Firewall, ip: 10.0.0.1, item_base: 44700,
+     group: Network/Firewalls, criticality: critical, role: perimeter-firewall,
+     os: "pfSense CE 2.7.2 (FreeBSD 14)", description: "Main perimeter firewall, WAN igb0, LAN igb1"}
+  - {hostid: "10543", host: lan-a-core, name: LAN A core switch, ip: 10.0.1.1, item_base: 44900,
+     group: Network/LAN, criticality: high, role: lan-segment, os: "Linux 6.1 (Debian 12)",
+     description: "LAN segment A (IoT devices)"}
+  - {hostid: "10544", host: lan-b-core, name: LAN B core switch, ip: 10.0.2.1, item_base: 45100,
+     group: Network/LAN, criticality: medium, role: lan-segment, os: "Linux 6.1 (Debian 12)",
+     description: "LAN segment B (web servers)"}
+
+# Baseline values for numeric items; attacks multiply them per phase.
+metrics:
+  if_in:  {key: "net.if.in[igb0]",  name: "Interface igb0: Bits received", units: bps, value_type: 3, offset: 10, base: 42000000}
+  if_out: {key: "net.if.out[igb0]", name: "Interface igb0: Bits sent",     units: bps, value_type: 3, offset: 11, base: 18000000}
+  cpu:    {key: "system.cpu.util",  name: "CPU utilization",               units: "%", value_type: 0, offset: 15, base: 12}
+  states: {key: "pfsense.state.table.current", name: "Firewall states: current", units: "", value_type: 3, offset: 21,
+           base: 8500, hosts: [pfsense-edge]}
+
+phases:
+  - name: normal
+    duration: 180
+  - name: recon
+    duration: 120
+    attacks:
+      lan-a-core:
+        labels: [RECON-PORTSCAN, RECON-OSSCAN, RECON-HOSTDISCOVERY, VULNERABILITYSCAN]
+        intensity: 0.85          # share of windows that are attack traffic
+        metrics: {if_in: 1.3, cpu: 1.4}
+    problems:
+      - {host: lan-a-core, triggerid: "30215", name: "Suricata alert - ET SCAN Potential port scan",
+         severity: 3, delay: 25, recovery_delay: 30, tags: {scope: security, src_ip: 203.0.113.50}}
+  - name: ddos
+    duration: 180
+    attacks:
+      pfsense-edge:
+        labels: [DDOS-SYN_FLOOD, DDOS-TCP_FLOOD, DDOS-ICMP_FLOOD]
+        intensity: 0.9
+        metrics: {if_in: 6.0, cpu: 4.5, states: 5.6}
+    problems:
+      - {host: pfsense-edge, triggerid: "30188", name: "pfSense: Firewall states above 80% of maximum",
+         severity: 3, delay: 40, recovery_delay: 60, tags: {scope: capacity}}
+      - {host: pfsense-edge, triggerid: "30211", name: "pfSense: High rate of blocked connections from single IP",
+         severity: 4, delay: 20, recovery_delay: 30, tags: {scope: security, src_ip: 198.18.0.77}}
+  - name: recovery
+    duration: 120
+  - name: web_attack
+    duration: 60
+    attacks:
+      lan-b-core:
+        labels: [SQLINJECTION, XSS, COMMANDINJECTION, UPLOADING_ATTACK]
+        intensity: 0.8
+        metrics: {cpu: 1.6}
+  - name: cooldown
+    duration: 60
