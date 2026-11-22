@@ -1,4 +1,4 @@
-# MLOps workflow: DVC + MLflow + MinIO
+# MLOps workflow: DVC + MLflow + S3 (SeaweedFS)
 
 Git holds code and small pointer files. Large binaries (the 8.7 GB dataset, model bundles, the replay pool)
 live in an S3 object store, and every step runs in Docker.
@@ -7,7 +7,7 @@ live in an S3 object store, and every step runs in Docker.
 |---|---|---|
 | **DVC** | Versions `data/`, `artifacts/models/` and `artifacts/replay/`. Defines the reproducible pipeline (`dvc.yaml`, `params.yaml`, `dvc.lock`) | `trainer` container |
 | **MLflow** | Experiment tracking (params, metrics, plots, the bundle for every run) and the **model registry** (`candidate` / `production` aliases) | `mlflow` service, UI at http://localhost:5050 |
-| **MinIO** | S3-compatible store: bucket `netad-dvc` (DVC remote) and `mlflow` (MLflow artifacts). Change env vars to move to AWS S3 | `minio` service, console at http://localhost:9001 |
+| **SeaweedFS** | S3-compatible store (MinIO stopped publishing public images): bucket `netad-dvc` (DVC remote) and `mlflow` (MLflow artifacts). To move to AWS S3, change the endpoint and keys | `s3` service, S3 API :8333, file browser at http://localhost:8888/buckets/ |
 | PostgreSQL | MLflow run and registry metadata | `mlflow-db` service |
 
 ```mermaid
@@ -21,7 +21,7 @@ flowchart LR
 ## Daily workflow
 
 ```bash
-./scripts/mlops.sh up            # MinIO + MLflow (other scripts start them automatically)
+./scripts/mlops.sh up            # S3 store + MLflow (other scripts start them automatically)
 # edit params.yaml or ml/netad_ml/*.py
 ./scripts/train.sh               # dvc repro: re-runs only the stages that changed, logs the run to MLflow,
                                  # registers the new version as "candidate", then dvc push
@@ -67,8 +67,8 @@ git add dvc.lock artifacts/models.dvc params.yaml && git commit -m "model: promo
 Then commit `data.dvc dvc.lock artifacts/models.dvc`.
 The first `train.sh` after this runs the `train` stage, because it has never run under DVC.
 
-Disk: `.dvc/cache` (~10 GB) plus the `minio-data` volume (~10 GB). `reset.sh` deletes only the application
-database. `minio-data` and `mlflow-pg` hold the versioned history, so only remove them on purpose.
+Disk: `.dvc/cache` (~10 GB) plus the `s3-data` volume (~10 GB). `reset.sh` deletes only the application
+database. `s3-data` and `mlflow-pg` hold the versioned history, so only remove them on purpose.
 
 Note: the 83 MB bundle committed before the migration stays in git history (this was a deliberate choice).
 New model versions no longer go into git.

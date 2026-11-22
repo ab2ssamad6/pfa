@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run any DVC command in Docker against the MinIO remote, e.g.
+# Run any DVC command in Docker against the S3 remote (SeaweedFS), e.g.
 #   ./scripts/dvc.sh pull        fetch data + model + replay pool for the current git commit
 #   ./scripts/dvc.sh status      what changed since the last pipeline run
 #   ./scripts/dvc.sh metrics diff main    compare metrics with another git revision

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Stop the stack and DELETE the database volume (all telemetry, predictions and incidents).
-# ML artifacts, datasets, MLflow runs and the MinIO (DVC) store are not touched.
+# ML artifacts, datasets, MLflow runs and the S3 (DVC) store are not touched.
 source "$(dirname "$0")/_common.sh"
 require_docker
 if [[ "${1:-}" != "--yes" ]]; then

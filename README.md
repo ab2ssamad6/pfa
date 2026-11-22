@@ -35,10 +35,10 @@ it loops every 12 minutes. See [docs/demo.md](docs/demo.md) for the defence walk
 | `scripts/demo.sh status\|restart\|outage N` | Scenario controls for live demos |
 | `scripts/train.sh [--force\|stage]` | Reproducible ML pipeline (`dvc repro` in Docker), logged to MLflow |
 | `scripts/promote.sh [ref]` | Deploy a registered model version to `artifacts/models` (versioned by DVC) |
-| `scripts/mlops.sh up\|down\|status\|models\|bootstrap` | MinIO + MLflow services, registry listing, one-time migration |
+| `scripts/mlops.sh up\|down\|status\|models\|bootstrap` | S3 store (SeaweedFS) + MLflow services, registry listing, one-time migration |
 | `scripts/dvc.sh <cmd>` | Any DVC command in Docker (`pull`, `status`, `metrics diff`, …) |
 
-The model (`artifacts/models/…`) and replay pool (`artifacts/replay/…`) are versioned with DVC in MinIO.
+The model (`artifacts/models/…`) and replay pool (`artifacts/replay/…`) are versioned with DVC in an S3 store (SeaweedFS).
 `start.sh` pulls them when they are missing. See [docs/mlops.md](docs/mlops.md) for the train → track → promote
 workflow.
 

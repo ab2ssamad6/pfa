@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Manage the MLOps services: MinIO (S3 object store: DVC remote + MLflow artifacts) and MLflow (tracking + registry).
+# Manage the MLOps services: SeaweedFS (S3 object store: DVC remote + MLflow artifacts) and MLflow (tracking + registry).
 #   ./scripts/mlops.sh up | down | status | models
 #   ./scripts/mlops.sh bootstrap    one-time: version the existing data, pipeline outputs and model
 source "$(dirname "$0")/_common.sh"
@@ -7,9 +7,9 @@ require_docker
 ensure_env
 
 urls() {
-  local m c; m="$(port_of MLFLOW_PORT)"; c="$(port_of MINIO_CONSOLE_PORT)"
+  local m c; m="$(port_of MLFLOW_PORT)"; c="$(port_of S3_CONSOLE_PORT)"
   info "  MLflow UI      http://localhost:${m:-5050}"
-  info "  MinIO console  http://localhost:${c:-9001}   (user/password: MINIO_ROOT_USER / MINIO_ROOT_PASSWORD in .env)"
+  info "  S3 browser     http://localhost:${c:-8888}/buckets/   (S3 API on :8333, keys S3_ACCESS_KEY / S3_SECRET_KEY in .env)"
 }
 
 bootstrap() {
@@ -39,8 +39,8 @@ bootstrap() {
 
 case "${1:-status}" in
   up)        mlops_up; urls ;;
-  down)      compose --profile mlops stop minio minio-init mlflow-db mlflow; info "MLOps services stopped (volumes kept)" ;;
-  status)    compose --profile mlops ps minio mlflow-db mlflow; urls ;;
+  down)      compose --profile mlops stop s3 s3-init mlflow-db mlflow; info "MLOps services stopped (volumes kept)" ;;
+  status)    compose --profile mlops ps s3 mlflow-db mlflow; urls ;;
   models)    mlops_up; ml python -m netad_ml.registry list ;;
   bootstrap) bootstrap ;;
   *)         fail "usage: ./scripts/mlops.sh up|down|status|models|bootstrap" ;;

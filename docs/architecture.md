@@ -192,7 +192,7 @@ stateDiagram-v2
 | worker | same image | — | starts after the api is healthy (migrations applied) |
 | web | built from `frontend/` (node build → nginx) | 8080 | SPA fallback, `/api` proxy |
 | trainer / backend-tests | `netad-trainer:local` / backend `test` target; profiles `train` / `test` | — | on-demand only. The trainer runs DVC, the pipeline and the MLflow client |
-| minio (+ minio-init) | minio/minio | 9000, 9001 | profile `mlops`, volume `minio-data`: DVC remote + MLflow artifacts |
+| s3 (+ s3-init) | chrislusf/seaweedfs | 8333, 8888 | profile `mlops`, volume `s3-data`: S3 store for the DVC remote + MLflow artifacts |
 | mlflow-db | postgres:16.6-alpine | — | profile `mlops`, volume `mlflow-pg` |
 | mlflow | built from `mlops/mlflow/` | 5050 | profile `mlops`, tracking + model registry ([mlops.md](mlops.md)) |
 

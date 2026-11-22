@@ -8,12 +8,12 @@ x-backend-env: &backend-env
   MODEL_DIR: /artifacts/models
   LOG_LEVEL: ${LOG_LEVEL:-INFO}
 
-# MLflow client + DVC S3 credentials for the trainer (MinIO stands in for AWS S3)
+# MLflow client + DVC S3 credentials for the trainer (SeaweedFS stands in for AWS S3)
 x-mlops-env: &mlops-env
   MLFLOW_TRACKING_URI: http://mlflow:5000
   MLFLOW_EXPERIMENT_NAME: ${MLFLOW_EXPERIMENT_NAME:-netad-anomaly-detection}
-  AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-netad}
-  AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-netad-minio-secret}
+  AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:-netad}
+  AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:-netad-s3-secret}
   DVC_NO_ANALYTICS: "1"
 
 services:
@@ -119,36 +119,58 @@ services:
       - ./:/srv/project          # DVC needs the whole repo (git, dvc.yaml, data/, artifacts/)
 
   # ---- MLOps services (profile "mlops", started by scripts/mlops.sh, train.sh, promote.sh, dvc.sh) ----
-  minio:
+  s3:   # SeaweedFS: S3-compatible object store (replaces MinIO, which no longer publishes public images)
     profiles: ["mlops"]
-    image: minio/minio:RELEASE.2024-12-18T13-15-44Z
-    command: ["server", "/data", "--console-address", ":9001"]
+    image: chrislusf/seaweedfs:4.52
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-netad}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-netad-minio-secret}
-    volumes:
-      - minio-data:/data
-    ports:
-      - "127.0.0.1:${MINIO_PORT:-9000}:9000"
-      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
-    healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
-      interval: 3s
-      timeout: 3s
-      retries: 30
-    restart: unless-stopped
-
-  minio-init:   # one-shot: create the buckets (idempotent)
-    profiles: ["mlops"]
-    image: minio/mc:RELEASE.2024-11-21T17-21-54Z
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-netad}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-netad-minio-secret}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-netad}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-netad-s3-secret}
     entrypoint: ["/bin/sh", "-c"]
     command:
-      - mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" && mc mb -p local/netad-dvc local/mlflow
+      - >-
+        printf '{"identities":[{"name":"admin","credentials":[{"accessKey":"%s","secretKey":"%s"}],"actions":["Admin","Read","Write","List","Tagging"]}]}'
+        "$$S3_ACCESS_KEY" "$$S3_SECRET_KEY" > /tmp/s3.json &&
+        exec weed server -dir=/data -ip=s3 -ip.bind=0.0.0.0 -s3 -s3.port=8333 -s3.config=/tmp/s3.json -filer.port=8888
+    volumes:
+      - s3-data:/data
+    ports:
+      - "127.0.0.1:${S3_PORT:-8333}:8333"
+      - "127.0.0.1:${S3_CONSOLE_PORT:-8888}:8888"   # filer web UI: browse buckets under /buckets
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:9333/cluster/healthz"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+    restart: unless-stopped
+
+  s3-init:   # one-shot: create the buckets (idempotent, retries until the S3 API answers)
+    profiles: ["mlops"]
+    build: ./mlops/mlflow
+    image: netad-mlflow:local
+    environment:
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:-netad}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:-netad-s3-secret}
+    command:
+      - python
+      - -c
+      - |
+        import time, boto3
+        s3 = boto3.client("s3", endpoint_url="http://s3:8333", region_name="us-east-1")
+        for attempt in range(60):
+            try:
+                have = {b["Name"] for b in s3.list_buckets().get("Buckets", [])}
+                for name in ("netad-dvc", "mlflow"):
+                    if name not in have:
+                        s3.create_bucket(Bucket=name)
+                print("buckets ready")
+                break
+            except Exception as e:
+                print("waiting for S3:", e)
+                time.sleep(2)
+        else:
+            raise SystemExit("S3 not reachable")
     depends_on:
-      minio: { condition: service_healthy }
+      s3: { condition: service_healthy }
 
   mlflow-db:
     profiles: ["mlops"]
@@ -179,14 +201,14 @@ services:
       - --artifacts-destination=s3://mlflow
       - --serve-artifacts
     environment:
-      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
-      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-netad}
-      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-netad-minio-secret}
+      MLFLOW_S3_ENDPOINT_URL: http://s3:8333
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:-netad}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:-netad-s3-secret}
     ports:
       - "127.0.0.1:${MLFLOW_PORT:-5050}:5000"
     depends_on:
       mlflow-db: { condition: service_healthy }
-      minio-init: { condition: service_completed_successfully }
+      s3-init: { condition: service_completed_successfully }
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health', timeout=2)"]
       interval: 5s
@@ -206,5 +228,5 @@ services:
 
 volumes:
   pgdata:
-  minio-data:   # DVC remote + MLflow artifacts: deleting it loses versioned data/models
+  s3-data:      # DVC remote + MLflow artifacts: deleting it loses versioned data/models
   mlflow-pg:    # MLflow runs + registry

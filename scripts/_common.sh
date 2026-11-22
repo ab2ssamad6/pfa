@@ -23,13 +23,13 @@ HOST_UID="$(id -u)"; HOST_GID="$(id -g)"; export HOST_UID HOST_GID
 # Run a command in the ML/MLOps container (repo mounted at /srv/project; has python, dvc, git, mlflow client)
 ml() { compose --profile train run --rm trainer "$@"; }
 
-# Start MinIO (DVC remote + MLflow artifact store) and MLflow (tracking + registry); idempotent.
+# Start the S3 store (SeaweedFS: DVC remote + MLflow artifact store) and MLflow (tracking + registry); idempotent.
 mlops_up() {
   ensure_env
-  info "starting MLOps services (MinIO, MLflow)"
+  info "starting MLOps services (S3 store, MLflow)"
   compose --profile mlops up -d --build mlflow >/dev/null
   local port; port="$(port_of MLFLOW_PORT)"; port="${port:-5050}"
-  wait_healthy "http://localhost:${port}/health" 180 "mlflow minio minio-init"
+  wait_healthy "http://localhost:${port}/health" 180 "mlflow s3 s3-init"
 }
 
 ensure_env() {
@@ -51,7 +51,7 @@ check_artifacts() {
     ok=0
   fi
   if [[ $ok -eq 0 && ( -f artifacts/models.dvc || -f dvc.lock ) ]]; then
-    info "artifacts are versioned with DVC — pulling them from the MinIO remote"
+    info "artifacts are versioned with DVC — pulling them from the S3 remote"
     mlops_up
     [[ -f artifacts/models.dvc ]] && ml dvc pull artifacts/models.dvc
     [[ -f dvc.lock ]] && ml dvc pull replay_pool
