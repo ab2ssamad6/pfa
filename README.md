@@ -16,7 +16,9 @@ mock Zabbix (JSON-RPC) ──► worker: ingest ─► infer (Random Forest) ─
 Prerequisites: Docker Engine / Desktop with Compose v2, about 4 GB free RAM, ports 8080/8000/8081/5432 free on localhost.
 
 ```bash
-./scripts/start.sh          # builds images, starts db + mock-zabbix + api + worker + web, waits for health
+git clone <repo-url> && cd pfa
+./scripts/start.sh          # downloads the trained model + replay pool (~85 MB, sha256-verified) on first run,
+                            # builds images, starts db + mock-zabbix + api + worker + web, waits for health
 open http://localhost:8080  # dashboard (API docs: http://localhost:8000/docs)
 ./scripts/smoke.sh          # optional end-to-end check through the web proxy
 ```
@@ -36,6 +38,7 @@ it loops every 12 minutes. See [docs/demo.md](docs/demo.md) for the defence walk
 | `scripts/train.sh [--force\|stage]` | Reproducible ML pipeline (`dvc repro` in Docker), logged to MLflow |
 | `scripts/promote.sh [ref]` | Deploy a registered model version to `artifacts/models` (versioned by DVC) |
 | `scripts/mlops.sh up\|down\|status\|models\|bootstrap` | S3 store (SeaweedFS) + MLflow services, registry listing, one-time migration |
+| `scripts/package_artifacts.sh [tag] [owner/repo]` | Package the model + replay pool for a GitHub Release (writes `artifacts/release.lock`) |
 | `scripts/dvc.sh <cmd>` | Any DVC command in Docker (`pull`, `status`, `metrics diff`, …) |
 
 The model (`artifacts/models/…`) and replay pool (`artifacts/replay/…`) are versioned with DVC in an S3 store (SeaweedFS).

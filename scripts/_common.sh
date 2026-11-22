@@ -51,29 +51,45 @@ ensure_env() {
   fi
 }
 
-# Model bundle + replay pool are produced by scripts/train.sh (offline ML pipeline).
+sha256_of() { if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | cut -d' ' -f1; else shasum -a 256 "$1" | cut -d' ' -f1; fi; }
+
+artifacts_present() { ls artifacts/models/*/metadata.json >/dev/null 2>&1 && [[ -f artifacts/replay/replay_pool.parquet ]]; }
+
+# Download the release tarball recorded in artifacts/release.lock, verify its sha256, extract it into artifacts/.
+fetch_release_artifacts() {
+  [[ -f artifacts/release.lock ]] || return 1
+  local url sha tmp
+  url="$(grep -E '^ARTIFACTS_URL=' artifacts/release.lock | cut -d= -f2-)"
+  sha="$(grep -E '^ARTIFACTS_SHA256=' artifacts/release.lock | cut -d= -f2-)"
+  [[ -n "$url" && -n "$sha" ]] || return 1
+  command -v curl >/dev/null 2>&1 || fail "curl is required to download the ML artifacts"
+  tmp="$(mktemp)"
+  info "downloading the model and replay pool from $url"
+  if ! curl -fL --retry 3 -o "$tmp" "$url"; then rm -f "$tmp"; warn "download failed"; return 1; fi
+  if [[ "$(sha256_of "$tmp")" != "$sha" ]]; then rm -f "$tmp"; fail "artifact tarball sha256 mismatch (expected $sha)"; fi
+  # only accept members under artifacts/models/ or artifacts/replay/
+  if tar -tzf "$tmp" | grep -vqE '^artifacts/(models|replay)(/|$)' || tar -tzf "$tmp" | grep -q '\.\.'; then
+    rm -f "$tmp"; fail "artifact tarball contains unexpected paths"
+  fi
+  tar -xzf "$tmp"
+  rm -f "$tmp"
+}
+
+# Model bundle + replay pool, in order of preference: already on disk; DVC pull (owner, with credentials in
+# .dvc/config.local); the public GitHub Release in artifacts/release.lock (anyone, no account); else train.
 check_artifacts() {
-  local ok=1
-  if ! ls artifacts/models/*/metadata.json >/dev/null 2>&1; then
-    warn "no trained model bundle in artifacts/models/"
-    ok=0
+  artifacts_present && return 0
+  warn "ML artifacts (model bundle, replay pool) are missing in artifacts/"
+  if [[ -f .dvc/config.local && -f artifacts/models.dvc ]]; then
+    info "pulling them with DVC (credentials found in .dvc/config.local)"
+    ml dvc pull artifacts/models.dvc || true
+    [[ -f dvc.lock ]] && { ml dvc pull replay_pool || true; }
+    artifacts_present && return 0
+    warn "DVC pull did not restore the artifacts"
   fi
-  if [[ ! -f artifacts/replay/replay_pool.parquet ]]; then
-    warn "no replay pool at artifacts/replay/replay_pool.parquet"
-    ok=0
-  fi
-  if [[ $ok -eq 0 && ( -f artifacts/models.dvc || -f dvc.lock ) ]]; then
-    # The default remote (DagsHub) is public: no credentials and no local MLOps services needed.
-    info "artifacts are versioned with DVC — pulling the model and replay pool from the DagsHub remote"
-    [[ -f artifacts/models.dvc ]] && ml dvc pull artifacts/models.dvc
-    [[ -f dvc.lock ]] && ml dvc pull replay_pool
-    ls artifacts/models/*/metadata.json >/dev/null 2>&1 && [[ -f artifacts/replay/replay_pool.parquet ]] \
-      || fail "DVC pull did not restore the artifacts (check network access to dagshub.com)."
-    return 0
-  fi
-  if [[ $ok -eq 0 ]]; then
-    fail "ML artifacts missing — run ./scripts/train.sh first (needs the CSV datasets in data/)."
-  fi
+  fetch_release_artifacts || true
+  artifacts_present && return 0
+  fail "ML artifacts missing: no release download available (artifacts/release.lock) — run ./scripts/train.sh"
 }
 
 port_of() { grep -E "^$1=" .env 2>/dev/null | cut -d= -f2 || true; }

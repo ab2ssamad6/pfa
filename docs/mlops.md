@@ -32,9 +32,14 @@ git add dvc.lock artifacts/models.dvc params.yaml && git commit -m "model: promo
 ```
 
 - Roll back: `./scripts/promote.sh <registry version>` (see `./scripts/mlops.sh models`).
-- Fresh clone or another machine: `./scripts/start.sh` runs `dvc pull` for the model and replay pool (~88 MB)
-  from the public DagsHub remote (`https://dagshub.com/ab2ssamad6/pfa.dvc`, the default remote) when they are
-  missing. No credentials or MLOps services are needed. `./scripts/dvc.sh pull` fetches everything, including `data/`.
+- Fresh clone or another machine: when the model or replay pool is missing, `./scripts/start.sh` runs
+  `dvc pull` if DVC credentials are in `.dvc/config.local`. Otherwise it downloads the GitHub Release tarball
+  named in `artifacts/release.lock` and checks its sha256. No account is needed. DagsHub requires a login
+  even for public repos, so it can't serve anonymous users.
+- Publish a release after promoting a model: `./scripts/package_artifacts.sh v1.1 <owner>/<repo>`, commit
+  `artifacts/release.lock`, push, then `gh release create v1.1 dist/netad-artifacts-v1.1.tar.gz`.
+- Retraining from a fresh clone (`train.sh`) pulls `data/` (9.3 GB) from DagsHub, which needs a free DagsHub
+  account and a token in `.dvc/config.local`.
 - Pushing to DagsHub needs a token in `.dvc/config.local` (see the comments in `.dvc/config`). The local SeaweedFS
   remote is still available as `-r s3`.
 - Any DVC command: `./scripts/dvc.sh status | dag | params diff | metrics show`.
