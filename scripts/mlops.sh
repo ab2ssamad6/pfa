@@ -7,8 +7,8 @@ require_docker
 ensure_env
 
 urls() {
-  local m c; m="$(port_of MLFLOW_PORT)"; c="$(port_of S3_CONSOLE_PORT)"
-  info "  MLflow UI      http://localhost:${m:-5050}"
+  local c; c="$(port_of S3_CONSOLE_PORT)"
+  info "  MLflow UI      $(mlflow_ui)"
   info "  S3 browser     http://localhost:${c:-8888}/buckets/   (S3 API on :8333, keys S3_ACCESS_KEY / S3_SECRET_KEY in .env)"
 }
 

@@ -23,9 +23,21 @@ HOST_UID="$(id -u)"; HOST_GID="$(id -g)"; export HOST_UID HOST_GID
 # Run a command in the ML/MLOps container (repo mounted at /srv/project; has python, dvc, git, mlflow client)
 ml() { compose --profile train run --rm trainer "$@"; }
 
-# Start the S3 store (SeaweedFS: DVC remote + MLflow artifact store) and MLflow (tracking + registry); idempotent.
+# MLflow tracking server: MLFLOW_TRACKING_URI from .env, or the local `mlflow` service when unset.
+mlflow_remote() { local u; u="$(port_of MLFLOW_TRACKING_URI)"; [[ -n "$u" && "$u" != http://mlflow:* ]]; }
+mlflow_ui() {
+  if mlflow_remote; then port_of MLFLOW_TRACKING_URI
+  else local p; p="$(port_of MLFLOW_PORT)"; echo "http://localhost:${p:-5050}"; fi
+}
+
+# Start the S3 store (SeaweedFS: local DVC remote + MLflow artifact store) and MLflow (tracking + registry);
+# idempotent. Skipped when MLflow is hosted (MLFLOW_TRACKING_URI): DVC then uses its default remote (DagsHub).
 mlops_up() {
   ensure_env
+  if mlflow_remote; then
+    info "using hosted MLflow at $(mlflow_ui)"
+    return 0
+  fi
   info "starting MLOps services (S3 store, MLflow)"
   compose --profile mlops up -d --build mlflow >/dev/null
   local port; port="$(port_of MLFLOW_PORT)"; port="${port:-5050}"
@@ -51,10 +63,12 @@ check_artifacts() {
     ok=0
   fi
   if [[ $ok -eq 0 && ( -f artifacts/models.dvc || -f dvc.lock ) ]]; then
-    info "artifacts are versioned with DVC — pulling them from the S3 remote"
-    mlops_up
+    # The default remote (DagsHub) is public: no credentials and no local MLOps services needed.
+    info "artifacts are versioned with DVC — pulling the model and replay pool from the DagsHub remote"
     [[ -f artifacts/models.dvc ]] && ml dvc pull artifacts/models.dvc
     [[ -f dvc.lock ]] && ml dvc pull replay_pool
+    ls artifacts/models/*/metadata.json >/dev/null 2>&1 && [[ -f artifacts/replay/replay_pool.parquet ]] \
+      || fail "DVC pull did not restore the artifacts (check network access to dagshub.com)."
     return 0
   fi
   if [[ $ok -eq 0 ]]; then

@@ -1,10 +1,17 @@
 [core]
-    remote = s3
+    remote = dagshub
     autostage = true
     analytics = false
 [cache]
     # copy: DVC never replaces files in data/ with links or changes their permissions
     type = copy
+# Public remote: anyone can pull anonymously. Pushing needs credentials in .dvc/config.local (not committed):
+#   ./scripts/dvc.sh remote modify --local dagshub auth basic
+#   ./scripts/dvc.sh remote modify --local dagshub user <dagshub-user>
+#   ./scripts/dvc.sh remote modify --local dagshub password <dagshub-token>
+['remote "dagshub"']
+    url = https://dagshub.com/ab2ssamad6/pfa.dvc
+# Local SeaweedFS store started by ./scripts/mlops.sh (use with -r s3)
 ['remote "s3"']
     url = s3://netad-dvc
     endpointurl = http://s3:8333

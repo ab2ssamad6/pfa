@@ -23,6 +23,5 @@ ml dvc repro "$@"
 info "pushing versioned outputs (data, replay pool) to the DVC remote"
 ml dvc push
 ml dvc metrics show
-MLFLOW_PORT="$(port_of MLFLOW_PORT)"
-info "done — new model registered as 'candidate': http://localhost:${MLFLOW_PORT:-5050}"
+info "done — new model registered as 'candidate': $(mlflow_ui)"
 info "deploy it with ./scripts/promote.sh   (then commit dvc.lock and artifacts/models.dvc)"

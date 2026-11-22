@@ -32,8 +32,11 @@ git add dvc.lock artifacts/models.dvc params.yaml && git commit -m "model: promo
 ```
 
 - Roll back: `./scripts/promote.sh <registry version>` (see `./scripts/mlops.sh models`).
-- Fresh clone or another machine: `./scripts/start.sh` runs `dvc pull` for the model and replay pool when they
-  are missing. `./scripts/dvc.sh pull` fetches everything, including `data/`.
+- Fresh clone or another machine: `./scripts/start.sh` runs `dvc pull` for the model and replay pool (~88 MB)
+  from the public DagsHub remote (`https://dagshub.com/ab2ssamad6/pfa.dvc`, the default remote) when they are
+  missing. No credentials or MLOps services are needed. `./scripts/dvc.sh pull` fetches everything, including `data/`.
+- Pushing to DagsHub needs a token in `.dvc/config.local` (see the comments in `.dvc/config`). The local SeaweedFS
+  remote is still available as `-r s3`.
 - Any DVC command: `./scripts/dvc.sh status | dag | params diff | metrics show`.
 
 ## Design decisions
@@ -72,3 +75,19 @@ database. `s3-data` and `mlflow-pg` hold the versioned history, so only remove t
 
 Note: the 83 MB bundle committed before the migration stays in git history (this was a deliberate choice).
 New model versions no longer go into git.
+
+## Hosted MLflow (DagsHub)
+
+Tracking and the model registry can use DagsHub's free hosted MLflow instead of the local `mlflow` service.
+Set these in `.env` (never commit it):
+
+```bash
+MLFLOW_TRACKING_URI=https://dagshub.com/ab2ssamad6/pfa.mlflow
+MLFLOW_TRACKING_USERNAME=ab2ssamad6
+MLFLOW_TRACKING_PASSWORD=<dagshub token>
+```
+
+The trainer container then logs runs and registers versions there. `train.sh`, `promote.sh`, `dvc.sh` and
+`mlops.sh models` skip starting SeaweedFS and the local MLflow. Runs and models are visible at
+https://dagshub.com/ab2ssamad6/pfa/experiments and `/models`. Leave `MLFLOW_TRACKING_URI` empty to go back to
+the local stack.
