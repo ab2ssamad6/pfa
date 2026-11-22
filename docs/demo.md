@@ -35,7 +35,7 @@ One hour of benign history is available before the scenario starts, so the chart
 
 Restart the timeline at any time with `./scripts/demo.sh restart`.
 
-## What was observed in the local integration run (2026-10-20)
+## Reference run
 
 - A Recon incident on LAN A (24 anomalous windows), with the Suricata problem linked.
 - A DDoS incident on pfSense, with both Zabbix problems linked.

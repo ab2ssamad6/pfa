@@ -116,8 +116,8 @@ Random Forest confusion counts at the threshold: TP 2,868,947 · FP 1,611 · FN 
 - **Binary versus 8-class.** A dedicated binary model gains only about 0.2 percentage points of recall, which
   doesn't justify losing the category hint.
 - **Model choice.** The rule "highest validation recall, then macro-F1" selected Random Forest (by 0.14 percentage
-  points). HGB has near-identical metrics, a 20× smaller artifact and slightly higher macro-F1. **The decision on
-  which model to deploy long-term is deliberately deferred by the project owner**; RF stays deployed.
+  points), and it is the deployed model. HGB has near-identical metrics, a 20× smaller artifact and slightly higher
+  macro-F1, so it remains a drop-in alternative (retrain with it selected, then `promote.sh`).
 
 ### False positives versus false negatives
 At FPR 1% and about 0.5 windows/s per host, a purely benign host produces about 18 anomalous windows per hour.
@@ -125,7 +125,7 @@ The 3-of-5 debounce makes an incident from benign noise very unlikely (independe
 C(5,3)·0.01³ ≈ 1e-5 per window). Missed windows (FN ≈ 2.7%) rarely prevent detection, because an attack lasts
 many windows. A higher threshold would trade attack coverage, mostly Recon and Web, for fewer alerts.
 
-## 5. Live demo check (local integration run, scenario ground truth)
+## 5. Live demo check (scenario ground truth)
 Over a 10-minute window: 903 windows, precision 0.915, recall 0.701, FPR 0.61%.
 Recall is lower than offline because the scenario over-represents the hard classes (Recon, Web).
 These are **demo** numbers, not a benchmark.
@@ -139,7 +139,7 @@ These are **demo** numbers, not a benchmark.
 - **No temporal modelling.** Windows are scored independently. Temporal context only enters through incident
   grouping.
 - **Label noise.** 598k conflicting vectors cap the achievable accuracy.
-- **Possible improvements.** Unsupervised baselines on Zabbix numeric items (option B from Phase 0), drift
+- **Possible improvements.** Unsupervised baselines on Zabbix numeric items , drift
   monitoring, and periodic retraining with analyst feedback (acknowledged/false-positive incidents as labels).
 
 ## 7. Reproduce
@@ -147,6 +147,5 @@ These are **demo** numbers, not a benchmark.
 ./scripts/train.sh            # Docker: dvc repro + MLflow tracking (docs/mlops.md); or locally:
 python -m netad_ml.convert && python -m netad_ml.prepare && python -m netad_ml.train && python -m netad_ml.replay_pool
 ```
-Memory: the first run was killed by the OOM killer in a 7 GB container while it kept every model in memory.
-Training now checkpoints each model to `ml/work/checkpoints/` and frees it, and the run completes in 7 GB (peak
-not measured precisely). Reruns resume from checkpoints. If memory is short, lower `--cap`.
+Memory: training checkpoints each model to `ml/work/checkpoints/` and frees it, so a full run fits in a 7 GB
+container. Reruns resume from checkpoints. If memory is short, lower `--cap`.

@@ -1,65 +1,148 @@
-# NetAD — AI-assisted network anomaly detection for a pfSense / Zabbix monitoring stack
+# NetAD — AI-assisted network anomaly detection for pfSense / Zabbix
 
-University final-year project. NetAD extends a pfSense + Zabbix monitoring concept with a machine-learning
-pipeline. It pulls flow-window telemetry from Zabbix's API (a faithful mock is bundled), scores every window with
-a model trained on CICIoT2023-derived data, groups anomalous windows into incidents with a lifecycle, and shows
-everything on a React dashboard.
+NetAD adds a machine-learning detection layer to a pfSense + Zabbix monitoring stack. A worker pulls flow-window
+telemetry from the Zabbix JSON-RPC API, scores every window with a Random Forest trained on CICIoT2023-derived
+data, groups anomalous windows into incidents, and shows them on a React dashboard.
 
 > Scores are **model predictions**, not confirmed attacks. The dashboard always says "suspected" and shows the score.
 
-```text
-mock Zabbix (JSON-RPC) ──► worker: ingest ─► infer (Random Forest) ─► correlate ──► PostgreSQL ◄── FastAPI ◄── React
-```
+- Code: https://github.com/ab2ssamad6/pfa
+- Dataset, models, experiments: https://dagshub.com/ab2ssamad6/pfa
 
-## Quick start (Docker only)
+## 1. Run the project
 
-Prerequisites: Docker Engine / Desktop with Compose v2, about 4 GB free RAM, ports 8080/8000/8081/5432 free on localhost.
+Requirements: Docker with Compose v2, ~4 GB free RAM, ports 8080, 8000, 8081 and 5432 free.
 
 ```bash
-git clone <repo-url> && cd pfa
-./scripts/start.sh          # downloads the trained model + replay pool (~85 MB, sha256-verified) on first run,
-                            # builds images, starts db + mock-zabbix + api + worker + web, waits for health
-open http://localhost:8080  # dashboard (API docs: http://localhost:8000/docs)
-./scripts/smoke.sh          # optional end-to-end check through the web proxy
+git clone https://github.com/ab2ssamad6/pfa.git && cd pfa
+./scripts/start.sh      # first run downloads the trained model + replay pool (~85 MB, sha256-verified)
 ```
 
-The demo scenario starts when the mock starts: **recon at +10 s, DDoS at +22 s, web attack at +48 s**, and then
-it loops every 60 seconds. See [docs/demo.md](docs/demo.md) for the defence walkthrough.
-
-| Script | Purpose |
+| URL | What |
 |---|---|
-| `scripts/setup.sh` | Checks prerequisites, creates `.env`, verifies ML artifacts, builds images |
-| `scripts/start.sh` / `stop.sh` / `restart.sh [svc]` | Lifecycle (the database volume persists) |
-| `scripts/logs.sh [svc…]` | Follow logs |
-| `scripts/reset.sh` | Stops the stack and **deletes** the database volume |
-| `scripts/test.sh [--local]` | Runs all test suites (in Docker, or with local toolchains) |
-| `scripts/smoke.sh [url]` | End-to-end smoke test against a running stack |
-| `scripts/demo.sh status\|restart\|outage N` | Scenario controls for live demos |
-| `scripts/train.sh [--force\|stage]` | Reproducible ML pipeline (`dvc repro` in Docker), logged to MLflow |
-| `scripts/promote.sh [ref]` | Deploy a registered model version to `artifacts/models` (versioned by DVC) |
-| `scripts/mlops.sh up\|down\|status\|models\|bootstrap` | S3 store (SeaweedFS) + MLflow services, registry listing, one-time migration |
-| `scripts/package_artifacts.sh [tag] [owner/repo]` | Package the model + replay pool for a GitHub Release (writes `artifacts/release.lock`) |
-| `scripts/dvc.sh <cmd>` | Any DVC command in Docker (`pull`, `status`, `metrics diff`, …) |
+| http://localhost:8080 | Dashboard |
+| http://localhost:8000/docs | API (OpenAPI) |
+| http://localhost:8081 | Mock Zabbix JSON-RPC |
 
-The model (`artifacts/models/…`) and replay pool (`artifacts/replay/…`) are versioned with DVC in an S3 store (SeaweedFS).
-`start.sh` pulls them when they are missing. See [docs/mlops.md](docs/mlops.md) for the train → track → promote
-workflow.
+The demo scenario starts with the mock and loops every 60 s: **recon at +10 s, DDoS at +22 s, web attack at
++48 s**. Walkthrough: [docs/demo.md](docs/demo.md).
 
-## Repository layout
-
-```text
-ZABBIX_doc/  data/  training.ipynb  todo.md   original project resources (unchanged)
-ml/            netad_ml package: convert → prepare → train → runtime bundle, MLflow tracking/registry (+ tests, Dockerfile)
-mlops/         MLflow server image;  dvc.yaml + params.yaml at the root define the pipeline
-artifacts/     models/<version>/{model.joblib,metadata.json,confusion_matrix.png}, replay/replay_pool.parquet
-mock_zabbix/   Zabbix 7.0-compatible JSON-RPC mock + scripted scenario (+ contract tests vs ZABBIX_doc)
-backend/       FastAPI API + worker (ingestion, inference, incidents), SQLAlchemy models, Alembic migrations
-frontend/      React 18 + Vite + TypeScript + TanStack Query + Recharts + Tailwind dashboard
-scripts/       operational shell scripts
-docs/          architecture, ML methodology, API, demo, real-Zabbix integration, development, status
+```bash
+./scripts/smoke.sh            # end-to-end check of the running stack
+./scripts/demo.sh outage 30   # simulate a 30 s Zabbix outage
+./scripts/demo.sh restart     # restart the scenario timeline
+./scripts/stop.sh             # stop (data kept)   |  ./scripts/reset.sh  stop and delete the database
+./scripts/test.sh             # all test suites in Docker
 ```
 
-## Key results (held-out test split: 3.10M unique windows)
+No training is needed to run the stack: the deployed model is pulled from DVC, or from the GitHub Release
+`v1.0` when no DVC credentials are configured.
+
+## 2. Retrain and deploy a model
+
+Retraining needs the 9.3 GB dataset from DagsHub: create a free account and put a token in
+`.dvc/config.local` (see the comments in `.dvc/config`).
+
+```bash
+./scripts/train.sh            # dvc repro in Docker: reruns changed stages, logs to MLflow, registers "candidate"
+./scripts/dvc.sh metrics diff # compare with the previous run (or use the MLflow UI)
+./scripts/promote.sh          # candidate → artifacts/models (sha256 checked) → alias "production" → dvc push
+git add dvc.lock artifacts/models.dvc params.yaml && git commit -m "model: promote <version>"
+./scripts/restart.sh api worker
+```
+
+Hyperparameters live in `params.yaml`. Rollback: `./scripts/promote.sh <registry version>`.
+MLflow runs locally (`./scripts/mlops.sh up`, UI at http://localhost:5050) or on DagsHub when
+`MLFLOW_TRACKING_URI` is set in `.env`. Details: [docs/mlops.md](docs/mlops.md).
+
+## 3. How it works
+
+```mermaid
+flowchart LR
+  Z[Zabbix 7.0 API<br/>mock or real] -- "history.get / event.get<br/>every 2 s" --> I
+  subgraph W[worker]
+    I[ingest<br/>idempotent, watermarks] --> P[infer<br/>Random Forest] --> C[correlate<br/>incidents per host]
+  end
+  W --> DB[(PostgreSQL)]
+  DB --> API[FastAPI] -- "/api, polled every 3 s" --> UI[React dashboard]
+  UI -- acknowledge / resolve --> API
+```
+
+1. **Ingest.** Each host exposes one text item, `netad.flow.features`, holding a JSON object of window features.
+   Numeric items (bandwidth, CPU, firewall states) and Zabbix problems are stored as context.
+2. **Infer.** Every new window gets an attack score and a category distribution (8 classes). A window is
+   anomalous when its score passes the threshold chosen for benign FPR ≤ 1%.
+3. **Correlate.** An incident opens when ≥3 of the last 5 windows of a host are anomalous. Anomalies ≤60 s apart
+   join it, and it auto-resolves after 120 s without anomalies (telemetry time). Zabbix problems on the same
+   host are linked to it.
+4. **Display.** The dashboard shows hosts, score timelines, incidents with their windows and linked problems,
+   source health, and the model metrics.
+
+### Incident lifecycle
+
+```mermaid
+stateDiagram-v2
+  [*] --> open: ≥3 of 5 windows anomalous
+  open --> acknowledged: analyst
+  open --> resolved: analyst, or 120 s without anomalies
+  acknowledged --> resolved: analyst, or auto
+  resolved --> [*]
+```
+
+## 4. Architecture
+
+```mermaid
+flowchart TB
+  subgraph offline["Offline ML pipeline — ml/ (DVC + MLflow)"]
+    CSV[data/ 63 CSVs] --> CONV[convert] --> PREP[prepare<br/>dedup + hash split] --> TRAIN[train<br/>LR / RF / HGB]
+    TRAIN --> REG[(MLflow registry)]
+    REG -- promote.sh --> BUNDLE[(artifacts/models<br/>model bundle)]
+    PREP --> POOL[(artifacts/replay<br/>test split only)]
+  end
+  subgraph stack["Docker Compose stack"]
+    MOCK[mock-zabbix :8081]
+    WORKER[worker]
+    DB[(db :5432)]
+    API[api :8000]
+    WEB[web :8080<br/>nginx + React]
+  end
+  POOL -. mounted .-> MOCK
+  BUNDLE -. mounted .-> WORKER
+  BUNDLE -. mounted .-> API
+  MOCK --> WORKER --> DB
+  API --> DB
+  WEB --> API
+```
+
+- **mock-zabbix** is a fake Zabbix *server*, so the real adapter (`backend/app/sources/zabbix.py`) runs in every
+  test and demo. It replays rows from the held-out test split on a scripted scenario. Switching to a real Zabbix
+  is a configuration change: [docs/real_zabbix.md](docs/real_zabbix.md).
+- **worker** runs the ingest → infer → correlate cycle and retention. On source failure it marks the source
+  degraded/down, backs off and keeps processing stored data.
+- **api** serves reads and incident actions only; it never ingests.
+- **web** holds no business logic.
+
+## 5. Stack
+
+```mermaid
+flowchart LR
+  subgraph FE[Frontend]
+    R[React 18 · Vite · TypeScript] --- TQ[TanStack Query · Recharts · Tailwind] --- NG[nginx]
+  end
+  subgraph BE[Backend]
+    FA[FastAPI · Pydantic] --- SA[SQLAlchemy · Alembic] --- PG[(PostgreSQL 16)]
+  end
+  subgraph ML[Machine learning]
+    SK[scikit-learn 1.5.2] --- PD[pandas · Parquet]
+  end
+  subgraph OPS[MLOps & delivery]
+    DVC[DVC] --- MLF[MLflow] --- S3[SeaweedFS S3 / DagsHub] --- DK[Docker Compose] --- GH[GitHub Actions · Releases]
+  end
+  FE --> BE --> ML
+  ML --> OPS
+```
+
+## 6. Results (held-out test split, 3.10M unique windows)
 
 | Model | Attack recall | FPR | ROC-AUC | 8-class macro-F1 |
 |---|---|---|---|---|
@@ -67,15 +150,29 @@ docs/          architecture, ML methodology, API, demo, real-Zabbix integration,
 | **Random Forest (deployed)** | **0.973** | **1.02%** | **0.996** | **0.702** |
 | HistGradientBoosting | 0.972 | 1.02% | 0.996 | 0.714 |
 
-The threshold was chosen on validation data for benign FPR ≤ 1%. Full methodology, dataset audit and limitations are in
-[docs/ml_methodology.md](docs/ml_methodology.md).
+## 7. Repository layout
 
-## Documentation
+```text
+ml/            netad_ml package: convert → prepare → train → runtime bundle, MLflow tracking
+mock_zabbix/   Zabbix 7.0 JSON-RPC mock + scripted scenario
+backend/       FastAPI API + worker, SQLAlchemy models, Alembic migrations
+frontend/      React dashboard
+mlops/         MLflow server image (pipeline: dvc.yaml + params.yaml at the root)
+artifacts/     model bundle and replay pool (DVC-tracked), release.lock
+scripts/       start/stop/test/train/promote/demo scripts
+docs/          detailed documentation
+ZABBIX_doc/ data/ training.ipynb   original project resources
+```
 
-- [Architecture](docs/architecture.md): components, data flows, ERD, adapter abstraction, incident lifecycle
-- [ML methodology](docs/ml_methodology.md): dataset assessment, preprocessing, model selection, evaluation, limitations
-- [API reference](docs/api.md)
-- [Demo guide](docs/demo.md)
-- [Connecting a real Zabbix](docs/real_zabbix.md)
-- [Development & testing](docs/development.md)
-- [Implementation status & known limitations](docs/status.md)
+## 8. Documentation
+
+| Doc | Content |
+|---|---|
+| [architecture.md](docs/architecture.md) | Components, data flow, ERD, adapter, incident rules, deployment |
+| [ml_methodology.md](docs/ml_methodology.md) | Dataset audit, preprocessing, model selection, evaluation, limitations |
+| [mlops.md](docs/mlops.md) | DVC, MLflow, S3/DagsHub, train → promote workflow |
+| [demo.md](docs/demo.md) | Scenario timeline and defence walkthrough |
+| [api.md](docs/api.md) | REST API and mock Zabbix reference |
+| [real_zabbix.md](docs/real_zabbix.md) | Connecting a real Zabbix |
+| [development.md](docs/development.md) | Local setup, tests, migrations, conventions |
+| [status.md](docs/status.md) | Final status, design choices, known limitations |

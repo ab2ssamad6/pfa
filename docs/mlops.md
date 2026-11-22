@@ -42,6 +42,8 @@ git add dvc.lock artifacts/models.dvc params.yaml && git commit -m "model: promo
   account and a token in `.dvc/config.local`.
 - Pushing to DagsHub needs a token in `.dvc/config.local` (see the comments in `.dvc/config`). The local SeaweedFS
   remote is still available as `-r s3`.
+- Code is hosted on GitHub. `.github/workflows/mirror-dagshub.yml` mirrors every push to DagsHub (secret
+  `DAGSHUB_TOKEN`), so the DagsHub repository shows the DVC-tracked dataset and models next to the code.
 - Any DVC command: `./scripts/dvc.sh status | dag | params diff | metrics show`.
 
 ## Design decisions
@@ -78,8 +80,7 @@ The first `train.sh` after this runs the `train` stage, because it has never run
 Disk: `.dvc/cache` (~10 GB) plus the `s3-data` volume (~10 GB). `reset.sh` deletes only the application
 database. `s3-data` and `mlflow-pg` hold the versioned history, so only remove them on purpose.
 
-Note: the 83 MB bundle committed before the migration stays in git history (this was a deliberate choice).
-New model versions no longer go into git.
+The model bundle committed before the migration remains in git history. Model versions are no longer stored in git.
 
 ## Hosted MLflow (DagsHub)
 

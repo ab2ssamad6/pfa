@@ -173,7 +173,7 @@ stateDiagram-v2
   note right of open: anomalies ≤60 s apart join the active incident of the host;<br/>a later recurrence opens a NEW incident
 ```
 
-- **Grouping key = host.** Grouping by (host, category) was approved in the design, but measurements showed the
+- **Grouping key = host.** Grouping by (host, category) was rejected because measurements showed the
   model alternates DoS/DDoS window by window (DoS recall 0.47). Category-keyed grouping would split one attack
   into many incidents. The incident therefore stores a dominant category plus the full distribution
   (`category_counts`).
