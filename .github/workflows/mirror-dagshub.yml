@@ -1,0 +1,20 @@
+# Mirrors every GitHub push to DagsHub so DagsHub can show the DVC-tracked data and models.
+# Code lives on GitHub only. Needs the repo secret DAGSHUB_TOKEN (a DagsHub access token).
+name: mirror-dagshub
+on:
+  push:
+    branches: ["**"]
+    tags: ["**"]
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Push to DagsHub
+        env:
+          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
+        run: |
+          if [ -z "$DAGSHUB_TOKEN" ]; then echo "DAGSHUB_TOKEN secret not set, skipping"; exit 0; fi
+          git push --force "https://ab2ssamad6:${DAGSHUB_TOKEN}@dagshub.com/ab2ssamad6/pfa.git" "${GITHUB_REF}:${GITHUB_REF}"
