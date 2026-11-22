@@ -4,8 +4,11 @@
 FROM python:3.11.11-slim-bookworm
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
 RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
+# every package pinned (requirements.lock), then the project itself without re-resolving
+COPY requirements.lock /tmp/requirements.lock
+RUN pip install --no-deps -r /tmp/requirements.lock
 COPY pyproject.toml /srv/ml/pyproject.toml
 COPY netad_ml /srv/ml/netad_ml
 COPY tests /srv/ml/tests
-RUN pip install "/srv/ml[train,dev,mlops]"
+RUN pip install --no-deps "/srv/ml" && pip check
 WORKDIR /srv/project
