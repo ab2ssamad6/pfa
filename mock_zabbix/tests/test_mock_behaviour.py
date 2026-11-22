@@ -62,8 +62,8 @@ def test_ddos_metrics_spike(rpc, app):
     ddos = next(p for p in sc.phases if p.name == "ddos")
     t = sc.start + ddos.start
     p = {"history": 3, "itemids": ["44721"]}
-    normal = [int(r["value"]) for r in rpc("history.get", {**p, "time_from": sc.start, "time_till": sc.start + 120})["result"]]
-    attack = [int(r["value"]) for r in rpc("history.get", {**p, "time_from": t, "time_till": t + 120})["result"]]
+    normal = [int(r["value"]) for r in rpc("history.get", {**p, "time_from": sc.start, "time_till": sc.start + sc.phases[0].duration - 1})["result"]]
+    attack = [int(r["value"]) for r in rpc("history.get", {**p, "time_from": t, "time_till": t + ddos.duration - 1})["result"]]
     assert sum(attack) / len(attack) > 4 * sum(normal) / len(normal)
 
 
@@ -82,7 +82,7 @@ def test_events_problem_and_recovery(rpc, app):
 def test_problem_get_open_only(rpc, app, clock):
     sc = app.state.scenario
     ddos = next(p for p in sc.phases if p.name == "ddos")
-    clock.t = sc.start + sc.period + ddos.start + 90   # second loop, mid-DDoS
+    clock.t = sc.start + sc.period + ddos.start + ddos.duration - 2   # second loop, late DDoS
     open_ = rpc("problem.get", {"selectTags": "extend"})["result"]
     assert {p["name"] for p in open_} >= {"pfSense: High rate of blocked connections from single IP"}
     assert all("r_eventid" not in p for p in open_)

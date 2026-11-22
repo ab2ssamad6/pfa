@@ -36,7 +36,7 @@ def test_documented_request_returns_documented_shape(rpc, app, clock, name, req_
     if name == "problem":  # problem.get only returns OPEN problems: query during the DDoS phase
         sc = app.state.scenario
         ddos = next(p for p in sc.phases if p.name == "ddos")
-        clock.t = sc.start + sc.period + ddos.start + 90
+        clock.t = sc.start + sc.period + ddos.start + ddos.duration - 2
     req = d[req_key]
     resp = rpc(req["method"], req["params"])
     assert "error" not in resp, resp

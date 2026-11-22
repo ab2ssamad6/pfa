@@ -23,8 +23,8 @@ open http://localhost:8080  # dashboard (API docs: http://localhost:8000/docs)
 ./scripts/smoke.sh          # optional end-to-end check through the web proxy
 ```
 
-The demo scenario starts when the mock starts: **recon at +3 min, DDoS at +5 min, web attack at +10 min**, and then
-it loops every 12 minutes. See [docs/demo.md](docs/demo.md) for the defence walkthrough.
+The demo scenario starts when the mock starts: **recon at +10 s, DDoS at +22 s, web attack at +48 s**, and then
+it loops every 60 seconds. See [docs/demo.md](docs/demo.md) for the defence walkthrough.
 
 | Script | Purpose |
 |---|---|

@@ -3,32 +3,32 @@
 Everything shown comes from the trained Random Forest scoring rows from the **held-out test split** that the mock
 replays. Only the *timing and mix* of the traffic is synthetic (the scenario file); no prediction is fabricated.
 
-## Scenario `mock_zabbix/scenarios/defense_demo.yaml` (12-minute loop, deterministic, seed 2026)
+## Scenario `mock_zabbix/scenarios/defense_demo.yaml` (60-second loop, deterministic, seed 2026)
 
 | Offset | Phase | Host | Replayed traffic | Zabbix side |
 |---|---|---|---|---|
-| 0–3 min | normal | all | BENIGN | — |
-| 3–5 min | recon | lan-a-core | 85% port/OS scan, host discovery, vuln scan | Suricata "ET SCAN" problem (+25 s) |
-| 5–8 min | ddos | pfsense-edge | 90% SYN/TCP/ICMP flood | firewall states ×5.6; "states > 80%" and "blocked connections" problems |
-| 8–10 min | recovery | all | BENIGN | problems recover |
-| 10–11 min | web_attack | lan-b-core | 80% SQLi/XSS/command injection/upload | no Zabbix trigger (shows ML-only detection, and its limits) |
-| 11–12 min | cooldown | all | BENIGN | — |
+| 0–10 s | normal | all | BENIGN | — |
+| 10–22 s | recon | lan-a-core | 85% port/OS scan, host discovery, vuln scan | Suricata "ET SCAN" problem (+3 s) |
+| 22–38 s | ddos | pfsense-edge | 90% SYN/TCP/ICMP flood | firewall states ×5.6; "states > 80%" and "blocked connections" problems |
+| 38–48 s | recovery | all | BENIGN | problems recover |
+| 48–56 s | web_attack | lan-b-core | 80% SQLi/XSS/command injection/upload | no Zabbix trigger (shows ML-only detection, and its limits) |
+| 56–60 s | cooldown | all | BENIGN | — |
 
 One hour of benign history is available before the scenario starts, so the charts aren't empty.
 
-## Walkthrough (about 12 minutes)
+## Walkthrough (the loop repeats every 60 s)
 
 1. `./scripts/start.sh`, then open `http://localhost:8080`. Overview: 3 hosts, source **up**, scores flat and low.
-2. **+3 min.** The LAN A score chart turns red. Within about 10–20 s an incident appears:
+2. **+10 s.** The LAN A score chart turns red. Within about 10–20 s an incident appears:
    *"Suspected Recon (score 1.00)"*, severity high, with the Suricata problem linked.
 3. Open the incident: category distribution, score timeline, anomalous windows with class probabilities.
    **Acknowledge** it with a note (stored locally only).
-4. **+5 min.** pfSense DDoS. The incident is critical because the host is tagged `criticality=critical`, and two
+4. **+22 s.** pfSense DDoS. The incident is critical because the host is tagged `criticality=critical`, and two
    Zabbix problems are linked. Host page: firewall-state and bandwidth metrics spike (context only).
 5. **Failure handling.** `./scripts/demo.sh outage 30`: the banner shows the source degraded/down with the
    error. After recovery the worker backfills the gap from its watermark.
-6. **+8–10 min.** Incidents auto-resolve 120 s after the last anomaly.
-7. **+10 min.** Web attack on LAN B: few windows are flagged (web recall ≈ 0.19 offline), which honestly
+6. **Auto-resolve.** Incidents resolve 120 s after the last anomaly, which is longer than the 60 s loop, so they stay open while the scenario keeps repeating.
+7. **+48 s.** Web attack on LAN B: few windows are flagged (web recall ≈ 0.19 offline), which honestly
    illustrates the weak class.
 8. **Model page.** Offline test metrics, per-class table, confusion matrix, and **live agreement** with the
    scenario's ground truth.

@@ -32,7 +32,7 @@ def settings():
 
 @pytest.fixture
 def app(settings, clock):
-    # Scenario starts 15 minutes before "now" -> one full loop (11 min) is in the past.
+    # Scenario starts 15 minutes before "now" -> several full loops is in the past.
     return build_app(settings.model_copy(update={"start_offset_seconds": 900}), now=clock)
 
 
