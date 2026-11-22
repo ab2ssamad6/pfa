@@ -1,9 +1,6 @@
 # Original entries
 .DS_Store
 data/
-ZABBIX_doc/
-todo.md
-training.ipynb
 
 # Python
 .venv/

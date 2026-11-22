@@ -1,0 +1,94 @@
+{
+  "_description": "event.get - trigger events (problem + recovery) with tags and acknowledgements. Use it to pull the history of one alert or related alerts for the same attacker IP.",
+
+  "request_example": {
+    "jsonrpc": "2.0",
+    "method": "event.get",
+    "params": {
+      "output": ["eventid", "source", "object", "objectid", "clock", "name", "severity", "acknowledged", "r_eventid"],
+      "source": 0,
+      "object": 0,
+      "time_from": 1763211600,
+      "time_till": 1763218800,
+      "severities": [3, 4, 5],
+      "selectHosts": ["hostid", "host", "name"],
+      "selectTags": "extend",
+      "selectAcknowledges": ["clock", "message", "action", "userid"],
+      "selectSuppressionData": "extend",
+      "sortfield": ["clock", "eventid"],
+      "sortorder": "DESC",
+      "limit": 100
+    },
+    "id": 1
+  },
+  "request_by_id_example": {
+    "jsonrpc": "2.0",
+    "method": "event.get",
+    "params": {
+      "output": "extend",
+      "eventids": ["918273"],
+      "selectHosts": ["host"],
+      "selectTags": "extend"
+    },
+    "id": 2
+  },
+  "request_by_tag_example_same_attacker": {
+    "jsonrpc": "2.0",
+    "method": "event.get",
+    "params": {
+      "output": ["eventid", "clock", "name", "severity"],
+      "source": 0,
+      "object": 0,
+      "tags": [{"tag": "src_ip", "value": "203.0.113.50", "operator": 1}],
+      "evaltype": 0,
+      "time_from": 1763132400,
+      "sortfield": "clock",
+      "sortorder": "DESC"
+    },
+    "id": 3
+  },
+  "response_example": {
+    "jsonrpc": "2.0",
+    "result": [
+      {
+        "eventid": "918273",
+        "source": "0",
+        "object": "0",
+        "objectid": "30211",
+        "clock": "1763218690",
+        "name": "pfSense: High rate of blocked connections from single IP (1843/min)",
+        "severity": "4",
+        "acknowledged": "0",
+        "r_eventid": "0",
+        "hosts": [{"hostid": "10542", "host": "pfsense-edge", "name": "pfSense Edge Firewall"}],
+        "tags": [
+          {"tag": "src_ip", "value": "203.0.113.50"},
+          {"tag": "service", "value": "firewall"},
+          {"tag": "scope", "value": "security"}
+        ],
+        "acknowledges": [],
+        "suppression_data": []
+      },
+      {
+        "eventid": "918101",
+        "source": "0",
+        "object": "0",
+        "objectid": "30215",
+        "clock": "1763216020",
+        "name": "pfSense: Suricata alert - ET SCAN Potential SSH Scan",
+        "severity": "3",
+        "acknowledged": "1",
+        "r_eventid": "918140",
+        "hosts": [{"hostid": "10542", "host": "pfsense-edge", "name": "pfSense Edge Firewall"}],
+        "tags": [{"tag": "src_ip", "value": "203.0.113.50"}, {"tag": "scope", "value": "security"}],
+        "acknowledges": [
+          {"clock": "1763216100", "message": "AI: likely SSH scan, confidence 0.82, monitoring", "action": "4", "userid": "12"}
+        ],
+        "suppression_data": []
+      }
+    ],
+    "id": 1
+  },
+  "_severity_values": {"0": "Not classified", "1": "Information", "2": "Warning", "3": "Average", "4": "High", "5": "Disaster"},
+  "_note": "r_eventid != 0 means the problem was resolved by that recovery event. action 4 = message added."
+}

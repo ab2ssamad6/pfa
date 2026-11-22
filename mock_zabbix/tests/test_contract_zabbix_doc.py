@@ -1,11 +1,11 @@
 """Contract tests: the mock answers the documented requests with the documented shapes."""
 import json
+from pathlib import Path
 
 import pytest
 
-from conftest import ROOT
 
-DOC = ROOT / "ZABBIX_doc"
+DOC = Path(__file__).parent / "fixtures" / "zabbix_doc"
 
 
 def _doc(name):

@@ -1,0 +1,79 @@
+{
+  "_description": "host.get - asset context: what the host is, its IPs, groups, tags, inventory, and the itemids the agent needs for history.get/trend.get. Zabbix 7.0 uses selectHostGroups (6.0 uses selectGroups).",
+
+  "request_example": {
+    "jsonrpc": "2.0",
+    "method": "host.get",
+    "params": {
+      "output": ["hostid", "host", "name", "status", "description"],
+      "filter": {"host": ["pfsense-edge"]},
+      "selectInterfaces": ["interfaceid", "ip", "dns", "port", "type", "main"],
+      "selectHostGroups": ["groupid", "name"],
+      "selectTags": "extend",
+      "selectInventory": ["type", "location", "os", "hardware", "contact", "notes"],
+      "selectParentTemplates": ["templateid", "name"]
+    },
+    "id": 1
+  },
+  "request_find_items_for_host": {
+    "jsonrpc": "2.0",
+    "method": "item.get",
+    "params": {
+      "output": ["itemid", "name", "key_", "value_type", "lastvalue", "units"],
+      "hostids": ["10542"],
+      "search": {"key_": "pfsense"},
+      "sortfield": "name"
+    },
+    "id": 2
+  },
+  "_note_request_2": "item.get is the companion call: host.get gives hostid, item.get gives the itemids you pass to history.get / trend.get.",
+  "request_by_ip_example": {
+    "jsonrpc": "2.0",
+    "method": "host.get",
+    "params": {
+      "output": ["hostid", "host", "name"],
+      "selectInterfaces": ["ip"],
+      "selectTags": "extend",
+      "selectInventory": ["type", "notes"],
+      "searchByAny": true,
+      "filter": {"ip": ["10.0.0.25"]}
+    },
+    "id": 3
+  },
+  "response_example": {
+    "jsonrpc": "2.0",
+    "result": [
+      {
+        "hostid": "10542",
+        "host": "pfsense-edge",
+        "name": "pfSense Edge Firewall",
+        "status": "0",
+        "description": "Main perimeter firewall, WAN igb0, LAN igb1",
+        "interfaces": [
+          {"interfaceid": "311", "ip": "10.0.0.1", "dns": "", "port": "10050", "type": "1", "main": "1"},
+          {"interfaceid": "312", "ip": "10.0.0.1", "dns": "", "port": "161",   "type": "2", "main": "1"}
+        ],
+        "hostgroups": [{"groupid": "22", "name": "Network/Firewalls"}],
+        "tags": [
+          {"tag": "criticality", "value": "critical"},
+          {"tag": "role", "value": "perimeter-firewall"}
+        ],
+        "inventory": {
+          "type": "Firewall",
+          "location": "DC1 rack 3",
+          "os": "pfSense CE 2.7.2 (FreeBSD 14)",
+          "hardware": "Netgate 4100",
+          "contact": "secops@example.com",
+          "notes": "WAN 198.51.100.10; Suricata on igb0; allowlist: 10.0.0.0/24"
+        },
+        "parentTemplates": [
+          {"templateid": "10500", "name": "pfSense by SNMP"},
+          {"templateid": "10100", "name": "Zabbix agent"}
+        ]
+      }
+    ],
+    "id": 1
+  },
+  "_status_values": {"0": "monitored", "1": "not monitored"},
+  "_interface_types": {"1": "agent", "2": "SNMP", "3": "IPMI", "4": "JMX"}
+}

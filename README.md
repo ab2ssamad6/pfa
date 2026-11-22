@@ -161,7 +161,7 @@ mlops/         MLflow server image (pipeline: dvc.yaml + params.yaml at the root
 artifacts/     model bundle and replay pool (DVC-tracked), release.lock
 scripts/       start/stop/test/train/promote/demo scripts
 docs/          detailed documentation
-ZABBIX_doc/ data/ training.ipynb   original project resources
+data/          dataset (DVC-tracked, 63 CICIoT2023-derived CSVs)
 ```
 
 ## 8. Documentation

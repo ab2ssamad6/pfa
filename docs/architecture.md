@@ -26,7 +26,7 @@ flowchart LR
 
 | Component | Responsibility | Does NOT do |
 |---|---|---|
-| **mock-zabbix** | Serves `apiinfo.version`, `host.get`, `item.get`, `history.get`, `trend.get`, `event.get` and `problem.get` with the structures documented in `ZABBIX_doc/`. Telemetry is a pure function of (seed, host, time) | Detection of any kind |
+| **mock-zabbix** | Serves `apiinfo.version`, `host.get`, `item.get`, `history.get`, `trend.get`, `event.get` and `problem.get` with the structures documented in the Zabbix API examples in `mock_zabbix/tests/fixtures/zabbix_doc/`. Telemetry is a pure function of (seed, host, time) | Detection of any kind |
 | **worker** | Polls the source, normalises and persists telemetry, scores new windows, groups anomalies into incidents, applies retention, records source health and pipeline runs | Serve HTTP |
 | **api** | Read APIs for the dashboard; incident acknowledge/resolve; runs migrations on start | Ingestion or inference (it never depends on the worker being called) |
 | **web** | Dashboard (React SPA served by nginx, `/api` reverse-proxied) | Business logic: every rule lives in the backend |

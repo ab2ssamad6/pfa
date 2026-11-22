@@ -6,7 +6,7 @@ NetAD is complete as a final-year project. Every component below is implemented,
 | Area | State |
 |---|---|
 | ML pipeline | convert → prepare → train → bundle, reproducible with DVC; runs tracked in MLflow; Random Forest deployed |
-| Mock Zabbix | Zabbix 7.0 JSON-RPC server with a 60 s scripted scenario; contract-tested against `ZABBIX_doc/` |
+| Mock Zabbix | Zabbix 7.0 JSON-RPC server with a 60 s scripted scenario; contract-tested against the Zabbix API examples in `mock_zabbix/tests/fixtures/zabbix_doc/` |
 | Backend | FastAPI API + worker (ingestion, inference, incident correlation, retention), PostgreSQL 16 with Alembic |
 | Frontend | React dashboard: overview, hosts, incidents (acknowledge/resolve), model page |
 | Packaging | Docker Compose stack; model and replay pool distributed with DVC (DagsHub) and a GitHub Release fallback |

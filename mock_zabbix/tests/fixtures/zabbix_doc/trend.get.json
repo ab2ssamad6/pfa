@@ -1,0 +1,38 @@
+{
+  "_description": "trend.get - hourly aggregates (min/avg/max) kept long-term. Use for BASELINES: compare current traffic against the same hour on previous days/weeks. Only works for numeric items (float/unsigned).",
+
+  "request_example": {
+    "jsonrpc": "2.0",
+    "method": "trend.get",
+    "params": {
+      "output": ["itemid", "clock", "num", "value_min", "value_avg", "value_max"],
+      "itemids": ["44721"],
+      "time_from": 1762610400,
+      "time_till": 1763218800,
+      "limit": 168
+    },
+    "id": 1
+  },
+  "request_count_only_example": {
+    "jsonrpc": "2.0",
+    "method": "trend.get",
+    "params": {
+      "output": "extend",
+      "itemids": ["44721"],
+      "time_from": 1763211600,
+      "countOutput": true
+    },
+    "id": 2
+  },
+  "response_example": {
+    "jsonrpc": "2.0",
+    "result": [
+      {"itemid": "44721", "clock": "1763204400", "num": "60", "value_min": "7810",  "value_avg": "8420",  "value_max": "9105"},
+      {"itemid": "44721", "clock": "1763208000", "num": "60", "value_min": "7955",  "value_avg": "8610",  "value_max": "9330"},
+      {"itemid": "44721", "clock": "1763211600", "num": "60", "value_min": "8120",  "value_avg": "8790",  "value_max": "9420"},
+      {"itemid": "44721", "clock": "1763215200", "num": "60", "value_min": "8300",  "value_avg": "21540", "value_max": "48213"}
+    ],
+    "id": 1
+  },
+  "_note": "Item 44721 = firewall states. Normal hourly average is about 8,500; the last hour jumped to 21,540 with a max of 48,213 -> clear anomaly (z-score >> 3). 'clock' is the start of the hour, 'num' is the number of values aggregated."
+}

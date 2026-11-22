@@ -23,11 +23,11 @@ outputs are in `ml/work/parquet/conversion_report.json`, `ml/work/splits/prepare
 
 **Consequences**
 1. A chronological split is impossible, and grouping by file is meaningless, so the split is random.
-2. Because 54% of rows are duplicated across files, a file-based split (as in `training.ipynb`) leaks heavily.
+2. Because 54% of rows are duplicated across files, a file-based split (as in the original notebook) leaks heavily.
 3. Attacks are the majority class. Real networks are benign-majority, so precision is also reported at a
    re-weighted 10% attack prevalence.
 
-## 2. Review of the original notebook (`training.ipynb`, kept unchanged)
+## 2. Review of the original notebook (original training notebook)
 
 | Issue | Effect |
 |---|---|

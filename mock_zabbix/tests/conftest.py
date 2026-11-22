@@ -7,7 +7,7 @@ from zabbix_mock.config import Settings
 from zabbix_mock.jsonrpc import build_app
 
 ROOT = Path(__file__).resolve().parents[2]
-T0 = 1_763_218_800  # fixed "now" (matches the time range used in ZABBIX_doc examples)
+T0 = 1_763_218_800  # fixed "now" (matches the time range used in zabbix_doc fixtures)
 
 
 class Clock:

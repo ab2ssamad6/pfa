@@ -1,0 +1,93 @@
+{
+  "_description": "history.get - raw item values (pfSense traffic, states, filterlog/Suricata log lines). Zabbix 6.0/7.0. Auth: header 'Authorization: Bearer <API_TOKEN>', Content-Type: application/json-rpc, POST to http://ZABBIX/api_jsonrpc.php",
+  "_history_types": {"0": "float", "1": "character", "2": "log", "3": "unsigned integer", "4": "text"},
+
+  "request_numeric_example": {
+    "jsonrpc": "2.0",
+    "method": "history.get",
+    "params": {
+      "output": "extend",
+      "history": 3,
+      "itemids": ["44721"],
+      "time_from": 1763215200,
+      "time_till": 1763218800,
+      "sortfield": "clock",
+      "sortorder": "DESC",
+      "limit": 60
+    },
+    "id": 1
+  },
+  "response_numeric_example": {
+    "jsonrpc": "2.0",
+    "result": [
+      {"itemid": "44721", "clock": "1763218740", "value": "48213", "ns": "512340112"},
+      {"itemid": "44721", "clock": "1763218680", "value": "47990", "ns": "498120331"},
+      {"itemid": "44721", "clock": "1763218620", "value": "9120",  "ns": "120334555"}
+    ],
+    "id": 1
+  },
+  "_note_numeric": "Item 44721 = pfSense 'Firewall states: current' (history type 3). Jump from 9120 to 47990 in 60s suggests a SYN flood / scan.",
+
+  "request_log_example_filterlog": {
+    "jsonrpc": "2.0",
+    "method": "history.get",
+    "params": {
+      "output": ["itemid", "clock", "value", "source", "severity"],
+      "history": 2,
+      "itemids": ["44802"],
+      "time_from": 1763217900,
+      "sortfield": "clock",
+      "sortorder": "DESC",
+      "limit": 200
+    },
+    "id": 2
+  },
+  "response_log_example_filterlog": {
+    "jsonrpc": "2.0",
+    "result": [
+      {
+        "itemid": "44802",
+        "clock": "1763218750",
+        "value": "5,,,1000000103,igb0,match,block,in,4,0x0,,52,41233,0,DF,6,tcp,60,203.0.113.50,198.51.100.10,51544,22,0,S,2901133,,64240,,mss;sackOK;TS;nop;wscale",
+        "source": "filterlog",
+        "severity": "0"
+      },
+      {
+        "itemid": "44802",
+        "clock": "1763218749",
+        "value": "5,,,1000000103,igb0,match,block,in,4,0x0,,52,41234,0,DF,6,tcp,60,203.0.113.50,198.51.100.10,51545,3389,0,S,2901134,,64240,,mss;sackOK;TS;nop;wscale",
+        "source": "filterlog",
+        "severity": "0"
+      }
+    ],
+    "id": 2
+  },
+  "_note_log": "filterlog CSV fields: ... action(block/pass), direction, ipver, ..., proto, length, SRC_IP, DST_IP, SRC_PORT, DST_PORT ... Same source IP hitting ports 22, 3389... = port scan.",
+
+  "request_suricata_example": {
+    "jsonrpc": "2.0",
+    "method": "history.get",
+    "params": {
+      "output": "extend",
+      "history": 2,
+      "itemids": ["44850"],
+      "time_from": 1763217900,
+      "sortfield": "clock",
+      "sortorder": "DESC",
+      "limit": 50
+    },
+    "id": 3
+  },
+  "response_suricata_example": {
+    "jsonrpc": "2.0",
+    "result": [
+      {
+        "itemid": "44850",
+        "clock": "1763218702",
+        "value": "{\"timestamp\":\"2026-11-15T14:18:22.114+0000\",\"event_type\":\"alert\",\"src_ip\":\"203.0.113.50\",\"src_port\":51544,\"dest_ip\":\"198.51.100.10\",\"dest_port\":22,\"proto\":\"TCP\",\"alert\":{\"signature_id\":2001219,\"signature\":\"ET SCAN Potential SSH Scan\",\"category\":\"Attempted Information Leak\",\"severity\":2}}",
+        "ns": "114000000"
+      }
+    ],
+    "id": 3
+  }
+}

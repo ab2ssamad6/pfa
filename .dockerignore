@@ -1,7 +1,6 @@
 # Build context = repo root. Keep it small.
 .git/
 data/
-ZABBIX_doc/
 ml/work/
 **/.venv/
 **/venv/

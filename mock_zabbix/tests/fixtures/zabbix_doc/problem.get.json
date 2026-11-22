@@ -1,0 +1,75 @@
+{
+  "_description": "problem.get - currently OPEN problems only (faster and lighter than event.get). Good as the agent's 'what is happening right now' call.",
+
+  "request_example": {
+    "jsonrpc": "2.0",
+    "method": "problem.get",
+    "params": {
+      "output": ["eventid", "objectid", "clock", "name", "severity", "acknowledged", "suppressed"],
+      "source": 0,
+      "object": 0,
+      "recent": true,
+      "severities": [2, 3, 4, 5],
+      "selectTags": "extend",
+      "selectAcknowledges": ["clock", "message", "userid"],
+      "sortfield": ["eventid"],
+      "sortorder": "DESC",
+      "limit": 50
+    },
+    "id": 1
+  },
+  "request_filter_by_host_and_tag": {
+    "jsonrpc": "2.0",
+    "method": "problem.get",
+    "params": {
+      "output": "extend",
+      "hostids": ["10542"],
+      "tags": [{"tag": "scope", "value": "security", "operator": 1}],
+      "selectTags": "extend"
+    },
+    "id": 2
+  },
+  "response_example": {
+    "jsonrpc": "2.0",
+    "result": [
+      {
+        "eventid": "918273",
+        "objectid": "30211",
+        "clock": "1763218690",
+        "name": "pfSense: High rate of blocked connections from single IP (1843/min)",
+        "severity": "4",
+        "acknowledged": "0",
+        "suppressed": "0",
+        "tags": [
+          {"tag": "src_ip", "value": "203.0.113.50"},
+          {"tag": "scope", "value": "security"}
+        ],
+        "acknowledges": []
+      },
+      {
+        "eventid": "918270",
+        "objectid": "30188",
+        "clock": "1763218500",
+        "name": "pfSense: Firewall states above 80% of maximum",
+        "severity": "3",
+        "acknowledged": "0",
+        "suppressed": "0",
+        "tags": [{"tag": "scope", "value": "capacity"}],
+        "acknowledges": []
+      },
+      {
+        "eventid": "918266",
+        "objectid": "30202",
+        "clock": "1763217900",
+        "name": "pfSense: Failed webGUI/SSH logins > 10 in 5m",
+        "severity": "4",
+        "acknowledged": "1",
+        "suppressed": "0",
+        "tags": [{"tag": "src_ip", "value": "203.0.113.50"}, {"tag": "scope", "value": "security"}],
+        "acknowledges": [{"clock": "1763218000", "message": "AI: brute force on SSH from 203.0.113.50, recommend block 24h", "userid": "12"}]
+      }
+    ],
+    "id": 1
+  },
+  "_note": "Correlation hint for the AI: three open problems share src_ip=203.0.113.50 -> one attacker doing scan + brute force + state exhaustion."
+}

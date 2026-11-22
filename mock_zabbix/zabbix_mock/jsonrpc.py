@@ -1,6 +1,6 @@
 """Zabbix-compatible JSON-RPC 2.0 endpoint (subset used by the platform).
 
-Mirrors the structures documented in ZABBIX_doc/: every value is a string,
+Mirrors the structures documented in tests/fixtures/zabbix_doc/: every value is a string,
 timestamps are unix seconds ('clock') + nanoseconds ('ns').
 """
 from __future__ import annotations

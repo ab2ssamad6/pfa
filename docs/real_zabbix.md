@@ -40,7 +40,7 @@ code change in ingestion, ML or incidents.
 | Clock skew | Feature timestamps come from Zabbix `clock`; keep the Zabbix server NTP-synchronised |
 
 ## Contract tests
-`mock_zabbix/tests/test_contract_zabbix_doc.py` replays the request examples from `ZABBIX_doc/*.json` and checks the
+`mock_zabbix/tests/test_contract_zabbix_doc.py` replays the request examples from `mock_zabbix/tests/fixtures/zabbix_doc/*.json` and checks the
 documented response fields. `backend/tests/test_adapter_contract.py` checks the adapter against the mock,
 including paging, auth errors, HTTP 503 and connection failures. Running the second suite against a staging
 Zabbix is the recommended acceptance test before going live.
