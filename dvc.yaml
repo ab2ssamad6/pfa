@@ -1,0 +1,60 @@
+# Reproducible ML pipeline. Run in Docker with ./scripts/train.sh (= dvc repro inside the trainer container).
+# Intermediate outputs are not cached (cache: false): they are rebuilt from data/, which DVC versions (data.dvc).
+# The trained candidate goes to MLflow (tracking + registry); ./scripts/promote.sh exports a registered version
+# to artifacts/models/, which DVC versions separately (artifacts/models.dvc).
+stages:
+  convert:
+    cmd: python -m netad_ml.convert --src data --dst ml/work/parquet --workers ${convert.workers}
+    deps:
+      - data
+      - ml/netad_ml/convert.py
+      - ml/netad_ml/schema.py
+    params:
+      - convert
+    outs:
+      - ml/work/parquet:
+          cache: false
+
+  prepare:
+    cmd: python -m netad_ml.prepare --src ml/work/parquet --dst ml/work/splits
+    deps:
+      - ml/work/parquet
+      - ml/netad_ml/prepare.py
+      - ml/netad_ml/schema.py
+    outs:
+      - ml/work/splits:
+          cache: false
+
+  train:
+    cmd: >-
+      python -m netad_ml.train --splits ml/work/splits --out ml/work/candidate --report ml/reports
+      --cap ${train.cap} --cal-rows ${train.cal_rows} --max-fpr ${train.max_fpr} --seed ${train.seed} --fresh
+    deps:
+      - ml/work/splits
+      - ml/netad_ml/train.py
+      - ml/netad_ml/evaluate.py
+      - ml/netad_ml/runtime.py
+      - ml/netad_ml/schema.py
+      - ml/netad_ml/tracking.py
+    params:
+      - train
+    outs:
+      - ml/work/candidate:
+          cache: false
+      - ml/reports/experiments.json:
+          cache: false
+    metrics:
+      - ml/reports/metrics.json:
+          cache: false
+
+  replay_pool:
+    cmd: >-
+      python -m netad_ml.replay_pool --test-split ml/work/splits/test --out artifacts/replay/replay_pool.parquet
+      --per-label ${replay.per_label} --seed ${replay.seed}
+    deps:
+      - ml/work/splits/test
+      - ml/netad_ml/replay_pool.py
+    params:
+      - replay
+    outs:
+      - artifacts/replay

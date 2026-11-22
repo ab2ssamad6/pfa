@@ -30,6 +30,7 @@ from threadpoolctl import threadpool_limits
 import joblib
 
 from .evaluate import binary_metrics, multiclass_metrics, threshold_for_fpr
+from . import tracking
 from .runtime import save_bundle
 from .schema import BENIGN, CATEGORIES, LABEL_COL, LABEL_TO_CATEGORY, RAW_FEATURES
 
@@ -182,6 +183,7 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--checkpoints", type=Path, default=Path("ml/work/checkpoints"))
     p.add_argument("--fresh", action="store_true", help="ignore existing checkpoints")
     p.add_argument("--threads", type=int, default=None, help="cap OpenMP/BLAS threads (default: all)")
+    p.add_argument("--no-track", action="store_true", help="skip MLflow even if MLFLOW_TRACKING_URI is set")
     a = p.parse_args(argv)
     if a.threads:
         with threadpool_limits(limits=a.threads):
@@ -262,7 +264,21 @@ def _main(a: argparse.Namespace) -> None:
     save_plots(bdir, test_results[best])
     (a.report / "experiments.json").write_text(json.dumps(
         {"selected": best, "version": version, "validation": val_results, "test": test_results}, indent=2, default=str))
+    # Small, git-friendly summary for `dvc metrics show/diff`
+    sel_val, sel_test = val_results[best], test_results[best]
+    (a.report / "metrics.json").write_text(json.dumps({
+        "selected": best, "version": version,
+        "val": {k: sel_val["binary"][k] for k in ("recall", "fpr", "precision")} | {"macro_f1": sel_val["multiclass"]["macro_f1"]},
+        "test": {k: sel_test["binary"][k] for k in ("recall", "fpr", "precision")} | {"macro_f1": sel_test["multiclass"]["macro_f1"]},
+    }, indent=2))
     log.info("bundle written: %s", bdir)
+
+    if tracking.enabled() and not a.no_track:
+        params = {k: getattr(a, k) for k in ("cap", "cal_rows", "max_fpr", "seed")}
+        params["candidates"] = ",".join(names)
+        mv = tracking.log_bundle_run(bdir, json.loads((a.report / "experiments.json").read_text()), params=params,
+                                     extra_artifacts=[a.report / "experiments.json", a.report / "metrics.json"])
+        log.info("logged to MLflow and registered as %s v%s (alias candidate)", tracking.REGISTERED_MODEL, mv)
 
 
 if __name__ == "__main__":

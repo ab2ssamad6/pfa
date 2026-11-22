@@ -16,3 +16,4 @@ ml/work/
 **/.DS_Store
 .env
 artifacts/
+.dvc/

@@ -8,6 +8,14 @@ x-backend-env: &backend-env
   MODEL_DIR: /artifacts/models
   LOG_LEVEL: ${LOG_LEVEL:-INFO}
 
+# MLflow client + DVC S3 credentials for the trainer (MinIO stands in for AWS S3)
+x-mlops-env: &mlops-env
+  MLFLOW_TRACKING_URI: http://mlflow:5000
+  MLFLOW_EXPERIMENT_NAME: ${MLFLOW_EXPERIMENT_NAME:-netad-anomaly-detection}
+  AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-netad}
+  AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-netad-minio-secret}
+  DVC_NO_ANALYTICS: "1"
+
 services:
   db:
     image: postgres:16.6-alpine
@@ -95,11 +103,96 @@ services:
   trainer:
     profiles: ["train"]
     build: ./ml
+    image: netad-trainer:local
+    # run as the host user so files written into the repo are not owned by root
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    working_dir: /srv/project
+    environment:
+      <<: *mlops-env
+      HOME: /tmp
+      MPLCONFIGDIR: /tmp/matplotlib
+      PYTHONPATH: /srv/project/ml
+      GIT_CONFIG_COUNT: "1"
+      GIT_CONFIG_KEY_0: safe.directory
+      GIT_CONFIG_VALUE_0: "*"
     volumes:
-      - ./data:/srv/project/data:ro
-      - ./ml/work:/srv/project/ml/work
-      - ./ml/reports:/srv/project/ml/reports
-      - ./artifacts:/srv/project/artifacts
+      - ./:/srv/project          # DVC needs the whole repo (git, dvc.yaml, data/, artifacts/)
+
+  # ---- MLOps services (profile "mlops", started by scripts/mlops.sh, train.sh, promote.sh, dvc.sh) ----
+  minio:
+    profiles: ["mlops"]
+    image: minio/minio:RELEASE.2024-12-18T13-15-44Z
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-netad}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-netad-minio-secret}
+    volumes:
+      - minio-data:/data
+    ports:
+      - "127.0.0.1:${MINIO_PORT:-9000}:9000"
+      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+  minio-init:   # one-shot: create the buckets (idempotent)
+    profiles: ["mlops"]
+    image: minio/mc:RELEASE.2024-11-21T17-21-54Z
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-netad}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-netad-minio-secret}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" && mc mb -p local/netad-dvc local/mlflow
+    depends_on:
+      minio: { condition: service_healthy }
+
+  mlflow-db:
+    profiles: ["mlops"]
+    image: postgres:16.6-alpine
+    environment:
+      POSTGRES_USER: mlflow
+      POSTGRES_PASSWORD: ${MLFLOW_DB_PASSWORD:-mlflow}
+      POSTGRES_DB: mlflow
+    volumes:
+      - mlflow-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mlflow -d mlflow"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  mlflow:
+    profiles: ["mlops"]
+    build: ./mlops/mlflow
+    image: netad-mlflow:local
+    command:
+      - mlflow
+      - server
+      - --host=0.0.0.0
+      - --port=5000
+      - --backend-store-uri=postgresql://mlflow:${MLFLOW_DB_PASSWORD:-mlflow}@mlflow-db:5432/mlflow
+      - --artifacts-destination=s3://mlflow
+      - --serve-artifacts
+    environment:
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-netad}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-netad-minio-secret}
+    ports:
+      - "127.0.0.1:${MLFLOW_PORT:-5050}:5000"
+    depends_on:
+      mlflow-db: { condition: service_healthy }
+      minio-init: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health', timeout=2)"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
 
   backend-tests:
     profiles: ["test"]
@@ -113,3 +206,5 @@ services:
 
 volumes:
   pgdata:
+  minio-data:   # DVC remote + MLflow artifacts: deleting it loses versioned data/models
+  mlflow-pg:    # MLflow runs + registry

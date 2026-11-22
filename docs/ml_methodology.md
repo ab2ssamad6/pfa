@@ -144,7 +144,7 @@ These are **demo** numbers, not a benchmark.
 
 ## 7. Reproduce
 ```bash
-./scripts/train.sh            # Docker; or locally:
+./scripts/train.sh            # Docker: dvc repro + MLflow tracking (docs/mlops.md); or locally:
 python -m netad_ml.convert && python -m netad_ml.prepare && python -m netad_ml.train && python -m netad_ml.replay_pool
 ```
 Memory: the first run was killed by the OOM killer in a 7 GB container while it kept every model in memory.

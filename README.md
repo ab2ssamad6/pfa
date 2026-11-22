@@ -33,16 +33,21 @@ it loops every 12 minutes. See [docs/demo.md](docs/demo.md) for the defence walk
 | `scripts/test.sh [--local]` | Runs all test suites (in Docker, or with local toolchains) |
 | `scripts/smoke.sh [url]` | End-to-end smoke test against a running stack |
 | `scripts/demo.sh status\|restart\|outage N` | Scenario controls for live demos |
-| `scripts/train.sh [--force]` | Offline ML pipeline: CSV → model bundle + replay pool |
+| `scripts/train.sh [--force\|stage]` | Reproducible ML pipeline (`dvc repro` in Docker), logged to MLflow |
+| `scripts/promote.sh [ref]` | Deploy a registered model version to `artifacts/models` (versioned by DVC) |
+| `scripts/mlops.sh up\|down\|status\|models\|bootstrap` | MinIO + MLflow services, registry listing, one-time migration |
+| `scripts/dvc.sh <cmd>` | Any DVC command in Docker (`pull`, `status`, `metrics diff`, …) |
 
-The trained model (`artifacts/models/…`) and replay pool (`artifacts/replay/…`) must exist before `start.sh`.
-They are produced by `scripts/train.sh` from the 63 CSVs in `data/`.
+The model (`artifacts/models/…`) and replay pool (`artifacts/replay/…`) are versioned with DVC in MinIO.
+`start.sh` pulls them when they are missing. See [docs/mlops.md](docs/mlops.md) for the train → track → promote
+workflow.
 
 ## Repository layout
 
 ```text
 ZABBIX_doc/  data/  training.ipynb  todo.md   original project resources (unchanged)
-ml/            netad_ml package: convert → prepare → train → runtime bundle (+ tests, Dockerfile)
+ml/            netad_ml package: convert → prepare → train → runtime bundle, MLflow tracking/registry (+ tests, Dockerfile)
+mlops/         MLflow server image;  dvc.yaml + params.yaml at the root define the pipeline
 artifacts/     models/<version>/{model.joblib,metadata.json,confusion_matrix.png}, replay/replay_pool.parquet
 mock_zabbix/   Zabbix 7.0-compatible JSON-RPC mock + scripted scenario (+ contract tests vs ZABBIX_doc)
 backend/       FastAPI API + worker (ingestion, inference, incidents), SQLAlchemy models, Alembic migrations

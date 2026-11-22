@@ -1,0 +1,11 @@
+# Pipeline parameters (dvc.yaml). Changing one re-runs only the affected stages: ./scripts/train.sh
+convert:
+  workers: 2
+train:
+  cap: 100000        # max train rows per raw attack label (benign rows are never capped)
+  cal_rows: 1500000  # validation rows used for isotonic calibration (half A)
+  max_fpr: 0.01      # benign false-positive budget that sets the threshold (validation B)
+  seed: 42
+replay:
+  per_label: 1500
+  seed: 7

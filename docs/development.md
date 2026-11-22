@@ -4,7 +4,7 @@
 
 | Suite | Path | Tests | What it covers |
 |---|---|---|---|
-| ML | `ml/tests` | 19 | taxonomy, CSV validation (inf/NaN/truncated lines), hash split determinism and no train/test overlap, dedup, label conflicts, threshold/FPR maths, metric maths, full train→bundle pipeline on synthetic data, bundle sha256 tamper detection, feature validation |
+| ML | `ml/tests` | 21 | MLflow tracking + registry round trip (file store), promote export, taxonomy, CSV validation (inf/NaN/truncated lines), hash split determinism and no train/test overlap, dedup, label conflicts, threshold/FPR maths, metric maths, full train→bundle pipeline on synthetic data, bundle sha256 tamper detection, feature validation |
 | Mock Zabbix | `mock_zabbix/tests` | 17 | **contract vs `ZABBIX_doc/*.json`**, auth/JSON-RPC errors, determinism, paging/limits, no future values, scenario ground truth, metric spikes, events/recoveries, `problem.get`, outage |
 | Backend | `backend/tests` | 31 | migrations match models (autogenerate diff empty) + downgrade/upgrade, adapter contract and failure modes, idempotent ingestion and watermarks, incident rules (debounce, gap, auto-resolve, recurrence, lifecycle, linking, severity, backlog draining), **end-to-end pipeline with the real RF model**, REST API, invalid window handling, outage → health → recovery |
 | Frontend | `frontend/src/test` | 11 | API client errors, Overview, error/empty states, health banner, incident filter, acknowledge workflow (POST body, refresh), 409 handling, Model page |

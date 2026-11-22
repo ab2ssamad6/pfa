@@ -2,6 +2,8 @@ import os
 
 # Keep OpenMP (HistGradientBoosting) from oversubscribing shared CPUs during tests.
 os.environ.setdefault("OMP_NUM_THREADS", "2")
+# Tests never talk to the real MLflow server (the trainer container sets this); test_tracking uses a file store.
+os.environ.pop("MLFLOW_TRACKING_URI", None)
 
 import numpy as np
 import pandas as pd

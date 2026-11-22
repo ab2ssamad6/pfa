@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Stop all containers. Database data is kept (use reset.sh to wipe it).
+# Stop all containers. Database, MLflow and MinIO data are kept (use reset.sh to wipe it).
 source "$(dirname "$0")/_common.sh"
 require_docker
-compose down
+compose --profile mlops down
 info "stopped (database volume kept)"

@@ -191,6 +191,9 @@ stateDiagram-v2
 | api | `netad-backend:local` (target `runtime`) | 8000 | `RUN_MIGRATIONS=1` → `alembic upgrade head` with retries |
 | worker | same image | — | starts after the api is healthy (migrations applied) |
 | web | built from `frontend/` (node build → nginx) | 8080 | SPA fallback, `/api` proxy |
-| trainer / backend-tests | profiles `train` / `test` | — | on-demand only |
+| trainer / backend-tests | `netad-trainer:local` / backend `test` target; profiles `train` / `test` | — | on-demand only. The trainer runs DVC, the pipeline and the MLflow client |
+| minio (+ minio-init) | minio/minio | 9000, 9001 | profile `mlops`, volume `minio-data`: DVC remote + MLflow artifacts |
+| mlflow-db | postgres:16.6-alpine | — | profile `mlops`, volume `mlflow-pg` |
+| mlflow | built from `mlops/mlflow/` | 5050 | profile `mlops`, tracking + model registry ([mlops.md](mlops.md)) |
 
 Every configurable value is an environment variable (`.env.example`).

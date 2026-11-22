@@ -18,7 +18,7 @@ if [[ "${1:-}" == "--local" ]]; then
   step "frontend types"  bash -c "cd frontend && npx tsc -b --noEmit"
 else
   require_docker
-  step "ML pipeline"  compose --profile train run --rm trainer python -m pytest -q /srv/ml/tests -p no:cacheprovider
+  step "ML pipeline"  compose --profile train run --rm -w /srv/project/ml trainer python -m pytest -q -p no:cacheprovider
   step "mock Zabbix + backend (real PostgreSQL via pgserver)" compose --profile test run --rm backend-tests
   step "mock Zabbix (unit + contract)" compose --profile test run --rm -w /srv/project/mock_zabbix backend-tests \
        python -m pytest -q -p no:cacheprovider
