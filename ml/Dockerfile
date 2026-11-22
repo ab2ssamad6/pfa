@@ -11,4 +11,9 @@ COPY pyproject.toml /srv/ml/pyproject.toml
 COPY netad_ml /srv/ml/netad_ml
 COPY tests /srv/ml/tests
 RUN pip install --no-deps "/srv/ml" && pip check
+# /etc/passwd writable so the entrypoint can add the runtime (host) uid
+COPY entrypoint.sh /usr/local/bin/netad-entrypoint
+RUN chmod 755 /usr/local/bin/netad-entrypoint && chmod 666 /etc/passwd
+ENV USER=netad LOGNAME=netad
+ENTRYPOINT ["/usr/local/bin/netad-entrypoint"]
 WORKDIR /srv/project
