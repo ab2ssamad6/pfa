@@ -1,0 +1,74 @@
+schema: '2.0'
+stages:
+  convert:
+    cmd: python -m netad_ml.convert --src data --dst ml/work/parquet --workers 2
+    deps:
+    - path: data
+      hash: md5
+      md5: 544157f0c7218378b57df30ef19c4739.dir
+      size: 9300139459
+      nfiles: 63
+    - path: ml/netad_ml/convert.py
+      hash: md5
+      md5: c920ca63ca92174745be92b2ec304282
+      size: 3484
+    - path: ml/netad_ml/schema.py
+      hash: md5
+      md5: 80b68590e76e0bf262e3faeb622f4fc9
+      size: 2215
+    params:
+      params.yaml:
+        convert:
+          workers: 2
+    outs:
+    - path: ml/work/parquet
+      hash: md5
+      md5: 15f25598361107428999ddb6fb7e3dcd.dir
+      size: 1018950943
+      nfiles: 64
+  prepare:
+    cmd: python -m netad_ml.prepare --src ml/work/parquet --dst ml/work/splits
+    deps:
+    - path: ml/netad_ml/prepare.py
+      hash: md5
+      md5: e30eb1218dbee28e71b653e4a1932c2c
+      size: 4810
+    - path: ml/netad_ml/schema.py
+      hash: md5
+      md5: 80b68590e76e0bf262e3faeb622f4fc9
+      size: 2215
+    - path: ml/work/parquet
+      hash: md5
+      md5: 15f25598361107428999ddb6fb7e3dcd.dir
+      size: 1018950943
+      nfiles: 64
+    outs:
+    - path: ml/work/splits
+      hash: md5
+      md5: 6c92d05b1139edde2244c7c6422a065a.dir
+      size: 688664044
+      nfiles: 190
+  replay_pool:
+    cmd: python -m netad_ml.replay_pool --test-split ml/work/splits/test --out artifacts/replay/replay_pool.parquet
+      --per-label 1500 --seed 7
+    deps:
+    - path: ml/netad_ml/replay_pool.py
+      hash: md5
+      md5: 47cf9f7b31f57f0f131c42c0992011b8
+      size: 1934
+    - path: ml/work/splits/test
+      hash: md5
+      md5: f9007353911ccee9d4018260bad1394f.dir
+      size: 109693151
+      nfiles: 63
+    params:
+      params.yaml:
+        replay:
+          per_label: 1500
+          seed: 7
+    outs:
+    - path: artifacts/replay
+      hash: md5
+      md5: af6e5a7f1e49ff1080f1f5d6582f27c7.dir
+      size: 1831909
+      nfiles: 2
