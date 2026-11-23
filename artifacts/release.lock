@@ -1,4 +1,4 @@
 # Written by scripts/package_artifacts.sh. start.sh downloads this tarball when artifacts/ is empty and no DVC
 # credentials are configured, and refuses it unless the sha256 matches.
-ARTIFACTS_URL=https://github.com/ab2ssamad6/pfa/releases/download/v1.0/netad-artifacts-v1.0.tar.gz
+ARTIFACTS_URL=https://github.com/ab2ssamad6/pfa/releases/download/v2.0/netad-artifacts-v2.0.tar.gz
 ARTIFACTS_SHA256=71c54b4912dec658de592856c27e10db09621ef7a9eb913ecdf592dff51c808a
