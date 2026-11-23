@@ -1,8 +1,8 @@
 # API reference
 
 Interactive OpenAPI docs: `http://localhost:8000/docs` (generated from the Pydantic schemas in
-`backend/app/api/schemas.py`). Every timestamp is ISO-8601 UTC. There is no authentication (academic prototype;
-all ports are bound to 127.0.0.1).
+`backend/app/api/schemas.py`). Timestamps are ISO-8601 UTC. All ports are bound to
+127.0.0.1.
 
 | Method & path | Description |
 |---|---|

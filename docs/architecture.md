@@ -54,14 +54,14 @@ classDiagram
     rejects invalid payloads explicitly
   }
   TelemetrySource <|.. ZabbixJsonRpcAdapter
-  ZabbixJsonRpcAdapter --> MockZabbix : today (ZABBIX_URL=mock)
-  ZabbixJsonRpcAdapter --> RealZabbix : later (ZABBIX_URL=real)
+  ZabbixJsonRpcAdapter --> MockZabbix : ZABBIX_URL=mock
+  ZabbixJsonRpcAdapter --> RealZabbix : ZABBIX_URL=real
 ```
 
 - `backend/app/sources/base.py` defines the normalised types (`HostInfo`, `FeatureWindowRecord`, …). Nothing
   downstream sees a Zabbix structure: no string-typed values, no `clock`/`ns`, no JSON-RPC envelopes.
-- The mock is a **fake Zabbix server**, not a fake adapter. The production adapter is therefore exercised in
-  every test and every demo. Moving to a real Zabbix is a configuration change, see [real_zabbix.md](real_zabbix.md).
+- The mock is a fake Zabbix **server**, not a fake adapter, so the real adapter runs in every test and demo.
+  Pointing it at a real Zabbix is a configuration change ([real_zabbix.md](real_zabbix.md)).
 - Model features travel as one custom Zabbix item per host, `netad.flow.features` (value_type 4 = text). Its value
   is a JSON object of the 39 CICIoT-style window features. Numeric items (interface traffic, CPU, firewall
   states) are ingested for context and are **not** used by the model.
@@ -98,8 +98,7 @@ Properties:
   backfills the gap.
 - **Nothing is dropped silently.** Unparseable payloads are counted (`pipeline_runs.windows_rejected`) and
   logged. Windows the model rejects keep an `invalid_reason`.
-- **Latency.** Measured end to end (window produced → visible in the API) at about 2–6 s in the local integration
-  run.
+- **Latency.** 2–6 s from a window being produced to it showing in the API.
 
 ## 4. Offline pipeline
 
@@ -132,15 +131,75 @@ erDiagram
   incidents ||--o{ predictions : "groups anomalies"
   hosts ||--o{ incidents : on
   hosts ||--o{ external_events : "Zabbix problems"
-  incidents ||--o{ incident_external_links : ""
-  external_events ||--o{ incident_external_links : ""
-  hosts { int id PK; string source_ref UK; string name; string criticality; jsonb tags; bool active }
-  items { int id PK; int host_id FK; string source_ref UK; string key; enum kind; int value_type }
-  feature_windows { bigint id PK; int host_id FK; int item_id FK; timestamptz ts; bigint ns; jsonb features; text invalid_reason }
-  predictions { bigint window_id PK_FK; int host_id; timestamptz ts; float p_attack; string category; jsonb category_proba; bool is_anomaly; bool correlated; int incident_id FK }
-  incidents { int id PK; int host_id FK; enum status; enum severity; string category; jsonb category_counts; timestamptz opened_at; timestamptz last_seen_at; timestamptz resolved_at; int anomaly_count; float max_score }
-  external_events { int id PK; string source_ref UK; int host_id FK; string name; int severity; timestamptz clock; timestamptz recovered_at }
-  model_versions { int id PK; string version UK; string algorithm; string sha256; float threshold; jsonb metadata; bool is_active }
+  incidents ||--o{ incident_external_links : links
+  external_events ||--o{ incident_external_links : "linked by"
+  hosts {
+    int id PK
+    string source_ref UK
+    string name
+    string criticality
+    jsonb tags
+    bool active
+  }
+  items {
+    int id PK
+    int host_id FK
+    string source_ref UK
+    string key
+    enum kind
+    int value_type
+  }
+  feature_windows {
+    bigint id PK
+    int host_id FK
+    int item_id FK
+    timestamptz ts
+    bigint ns
+    jsonb features
+    text invalid_reason
+  }
+  predictions {
+    bigint window_id PK, FK
+    int host_id
+    timestamptz ts
+    float p_attack
+    string category
+    jsonb category_proba
+    bool is_anomaly
+    bool correlated
+    int incident_id FK
+  }
+  incidents {
+    int id PK
+    int host_id FK
+    enum status
+    enum severity
+    string category
+    jsonb category_counts
+    timestamptz opened_at
+    timestamptz last_seen_at
+    timestamptz resolved_at
+    int anomaly_count
+    float max_score
+  }
+  external_events {
+    int id PK
+    string source_ref UK
+    int host_id FK
+    string name
+    int severity
+    timestamptz clock
+    timestamptz recovered_at
+  }
+  model_versions {
+    int id PK
+    string version UK
+    string algorithm
+    string sha256
+    float threshold
+    jsonb metadata
+    bool is_active
+  }
 ```
 
 Additional tables: `metric_samples (item_id, ts) PK`, `source_health`, `pipeline_runs`, `ingest_watermarks`.
@@ -157,9 +216,8 @@ lets score timelines use the `(host_id, ts)` index without a join.
 `WHERE is_anomaly` and `WHERE NOT correlated`. Retention (`RETENTION_DAYS`, default 7) deletes raw telemetry but
 keeps windows referenced by incidents.
 
-**Is PostgreSQL enough?** Yes. The demo load is 3 hosts × 0.5 windows/s, about 130k windows/day, plus about 75k
-metric samples/day. Pagination, bucketing (`date_bin`) and retention keep queries bounded. TimescaleDB, Kafka,
-Redis or Celery would add operational cost without solving a problem this system has.
+**Load.** 3 hosts × 0.5 windows/s is about 130k windows and 75k metric samples per day. Pagination, `date_bin`
+bucketing and retention keep queries bounded, so plain PostgreSQL is enough.
 
 ## 6. Incident lifecycle
 

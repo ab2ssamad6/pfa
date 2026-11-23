@@ -1,13 +1,13 @@
 # MLOps workflow: DVC + MLflow + S3 (SeaweedFS)
 
-Git holds code and small pointer files. Large binaries (the 8.7 GB dataset, model bundles, the replay pool)
+Git holds code and small pointer files. Large binaries (the 9.3 GB dataset, model bundles, the replay pool)
 live in an S3 object store, and every step runs in Docker.
 
 | Tool | Role | Where |
 |---|---|---|
 | **DVC** | Versions `data/`, `artifacts/models/` and `artifacts/replay/`. Defines the reproducible pipeline (`dvc.yaml`, `params.yaml`, `dvc.lock`) | `trainer` container |
 | **MLflow** | Experiment tracking (params, metrics, plots, the bundle for every run) and the **model registry** (`candidate` / `production` aliases) | `mlflow` service, UI at http://localhost:5050 |
-| **SeaweedFS** | S3-compatible store (MinIO stopped publishing public images): bucket `netad-dvc` (DVC remote) and `mlflow` (MLflow artifacts). To move to AWS S3, change the endpoint and keys | `s3` service, S3 API :8333, file browser at http://localhost:8888/buckets/ |
+| **SeaweedFS** | S3-compatible store: bucket `netad-dvc` (DVC remote) and `mlflow` (MLflow artifacts). To move to AWS S3, change the endpoint and keys | `s3` service, S3 API :8333, file browser at http://localhost:8888/buckets/ |
 | PostgreSQL | MLflow run and registry metadata | `mlflow-db` service |
 
 ```mermaid
@@ -79,8 +79,6 @@ The first `train.sh` after this runs the `train` stage, because it has never run
 
 Disk: `.dvc/cache` (~10 GB) plus the `s3-data` volume (~10 GB). `reset.sh` deletes only the application
 database. `s3-data` and `mlflow-pg` hold the versioned history, so only remove them on purpose.
-
-The model bundle committed before the migration remains in git history. Model versions are no longer stored in git.
 
 ## Hosted MLflow (DagsHub)
 

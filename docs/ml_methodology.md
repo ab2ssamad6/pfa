@@ -23,25 +23,11 @@ outputs are in `ml/work/parquet/conversion_report.json`, `ml/work/splits/prepare
 
 **Consequences**
 1. A chronological split is impossible, and grouping by file is meaningless, so the split is random.
-2. Because 54% of rows are duplicated across files, a file-based split (as in the original notebook) leaks heavily.
+2. Because 54% of rows are duplicated across files, a file-based split leaks heavily.
 3. Attacks are the majority class. Real networks are benign-majority, so precision is also reported at a
    re-weighted 10% attack prevalence.
 
-## 2. Review of the original notebook (original training notebook)
-
-| Issue | Effect |
-|---|---|
-| Column names don't match the data (`label` vs `Label`; `flow_duration`, `Srate`, `Magnitue`… do not exist) | Crashes with `KeyError` |
-| Label dictionaries use mixed case, the data is upper-case | `KeyError` in the 8- and 2-class sections |
-| `scaler.fit()` called once per file | Only the last training file determines the scaling |
-| `model.fit()` called once per file | The final model has only seen the last training file |
-| `f1_score(y_pred, y_test)` | Arguments reversed: precision and recall swapped |
-| No handling of `inf`/NaN, no dedup, no seed, no artifact | Not reproducible; LR raises on `inf` |
-| File-based 80/20 split | Leaks because of cross-file duplicates |
-
-Kept from the notebook: the three label granularities and the idea of a linear baseline.
-
-## 3. Pipeline
+## 2. Pipeline
 
 1. **convert.** Validates the header, parses every value explicitly, rejects (and counts) bad labels, NaN and inf,
    and stores float32 Parquet. Result: 45,018,243 valid rows.
@@ -64,7 +50,7 @@ Kept from the notebook: the three label granularities and the idea of a linear b
    `predict` rejects missing or non-finite features.
 7. **Replay pool.** 44,352 rows (up to 1,500 per label) sampled from the **test split only**, used by the mock.
 
-## 4. Candidates and results
+## 3. Candidates and results
 
 Hyper-parameters: LR = signed-log + standard scaling, `class_weight=balanced`. RF = 100 trees, `max_depth` 20,
 `min_samples_leaf` 5, `max_samples` 0.3. HGB = 300 iterations, early stopping, 63 leaves.
@@ -116,8 +102,7 @@ Random Forest confusion counts at the threshold: TP 2,868,947 · FP 1,611 · FN 
 - **Binary versus 8-class.** A dedicated binary model gains only about 0.2 percentage points of recall, which
   doesn't justify losing the category hint.
 - **Model choice.** The rule "highest validation recall, then macro-F1" selected Random Forest (by 0.14 percentage
-  points), and it is the deployed model. HGB has near-identical metrics, a 20× smaller artifact and slightly higher
-  macro-F1, so it remains a drop-in alternative (retrain with it selected, then `promote.sh`).
+  points). HGB is close behind and can be deployed the same way (`train.sh`, then `promote.sh`).
 
 ### False positives versus false negatives
 At FPR 1% and about 0.5 windows/s per host, a purely benign host produces about 18 anomalous windows per hour.
@@ -125,24 +110,11 @@ The 3-of-5 debounce makes an incident from benign noise very unlikely (independe
 C(5,3)·0.01³ ≈ 1e-5 per window). Missed windows (FN ≈ 2.7%) rarely prevent detection, because an attack lasts
 many windows. A higher threshold would trade attack coverage, mostly Recon and Web, for fewer alerts.
 
-## 5. Live demo check (scenario ground truth)
+## 4. Live demo check (scenario ground truth)
 Over a 10-minute window: 903 windows, precision 0.915, recall 0.701, FPR 0.61%.
-Recall is lower than offline because the scenario over-represents the hard classes (Recon, Web).
-These are **demo** numbers, not a benchmark.
+Recall is lower than offline because the scenario uses more Recon and Web traffic than the test split.
 
-## 6. Limitations and future work
-- **Domain shift.** CICIoT2023 is lab IoT traffic. The pfSense network in the target deployment differs, so
-  thresholds and models must be re-validated on local labelled data.
-- **Feature exporter.** A real deployment needs an exporter that produces the same window features from pfSense
-  traffic (softflowd / CICFlowMeter-style aggregation pushed with `zabbix_sender`). That exporter isn't part of
-  this project.
-- **No temporal modelling.** Windows are scored independently. Temporal context only enters through incident
-  grouping.
-- **Label noise.** 598k conflicting vectors cap the achievable accuracy.
-- **Possible improvements.** Unsupervised baselines on Zabbix numeric items , drift
-  monitoring, and periodic retraining with analyst feedback (acknowledged/false-positive incidents as labels).
-
-## 7. Reproduce
+## 5. Reproduce
 ```bash
 ./scripts/train.sh            # Docker: dvc repro + MLflow tracking (docs/mlops.md); or locally:
 python -m netad_ml.convert && python -m netad_ml.prepare && python -m netad_ml.train && python -m netad_ml.replay_pool

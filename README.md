@@ -18,11 +18,11 @@ git clone https://github.com/ab2ssamad6/pfa.git && cd pfa
 ./scripts/start.sh      # first run downloads the trained model + replay pool (~85 MB, sha256-verified)
 ```
 
-| URL | What |
-|---|---|
-| http://localhost:8080 | Dashboard |
-| http://localhost:8000/docs | API (OpenAPI) |
-| http://localhost:8081 | Mock Zabbix JSON-RPC |
+| URL                        | What                 |
+| -------------------------- | -------------------- |
+| http://localhost:8080      | Dashboard            |
+| http://localhost:8000/docs | API (OpenAPI)        |
+| http://localhost:8081      | Mock Zabbix JSON-RPC |
 
 The demo scenario starts with the mock and loops every 60 s: **recon at +10 s, DDoS at +22 s, web attack at
 +48 s**. Walkthrough: [docs/demo.md](docs/demo.md).
@@ -114,7 +114,7 @@ flowchart TB
   WEB --> API
 ```
 
-- **mock-zabbix** is a fake Zabbix *server*, so the real adapter (`backend/app/sources/zabbix.py`) runs in every
+- **mock-zabbix** is a fake Zabbix _server_, so the real adapter (`backend/app/sources/zabbix.py`) runs in every
   test and demo. It replays rows from the held-out test split on a scripted scenario. Switching to a real Zabbix
   is a configuration change: [docs/real_zabbix.md](docs/real_zabbix.md).
 - **worker** runs the ingest → infer → correlate cycle and retention. On source failure it marks the source
@@ -144,11 +144,11 @@ flowchart LR
 
 ## 6. Results (held-out test split, 3.10M unique windows)
 
-| Model | Attack recall | FPR | ROC-AUC | 8-class macro-F1 |
-|---|---|---|---|---|
-| Logistic Regression (baseline) | 0.955 | 0.91% | 0.989 | 0.499 |
-| **Random Forest (deployed)** | **0.973** | **1.02%** | **0.996** | **0.702** |
-| HistGradientBoosting | 0.972 | 1.02% | 0.996 | 0.714 |
+| Model                          | Attack recall | FPR       | ROC-AUC   | 8-class macro-F1 |
+| ------------------------------ | ------------- | --------- | --------- | ---------------- |
+| Logistic Regression (baseline) | 0.955         | 0.91%     | 0.989     | 0.499            |
+| **Random Forest (deployed)**   | **0.973**     | **1.02%** | **0.996** | **0.702**        |
+| HistGradientBoosting           | 0.972         | 1.02%     | 0.996     | 0.714            |
 
 ## 7. Repository layout
 
@@ -166,13 +166,12 @@ data/          dataset (DVC-tracked, 63 CICIoT2023-derived CSVs)
 
 ## 8. Documentation
 
-| Doc | Content |
-|---|---|
-| [architecture.md](docs/architecture.md) | Components, data flow, ERD, adapter, incident rules, deployment |
-| [ml_methodology.md](docs/ml_methodology.md) | Dataset audit, preprocessing, model selection, evaluation, limitations |
-| [mlops.md](docs/mlops.md) | DVC, MLflow, S3/DagsHub, train → promote workflow |
-| [demo.md](docs/demo.md) | Scenario timeline and defence walkthrough |
-| [api.md](docs/api.md) | REST API and mock Zabbix reference |
-| [real_zabbix.md](docs/real_zabbix.md) | Connecting a real Zabbix |
-| [development.md](docs/development.md) | Local setup, tests, migrations, conventions |
-| [status.md](docs/status.md) | Final status, design choices, known limitations |
+| Doc                                         | Content                                                         |
+| ------------------------------------------- | --------------------------------------------------------------- |
+| [architecture.md](docs/architecture.md)     | Components, data flow, ERD, adapter, incident rules, deployment |
+| [ml_methodology.md](docs/ml_methodology.md) | Dataset audit, preprocessing, model selection, evaluation       |
+| [mlops.md](docs/mlops.md)                   | DVC, MLflow, S3/DagsHub, train → promote workflow               |
+| [demo.md](docs/demo.md)                     | Scenario timeline and defence walkthrough                       |
+| [api.md](docs/api.md)                       | REST API and mock Zabbix reference                              |
+| [real_zabbix.md](docs/real_zabbix.md)       | Connecting a real Zabbix                                        |
+| [development.md](docs/development.md)       | Local setup, tests, migrations, conventions                     |

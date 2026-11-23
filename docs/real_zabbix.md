@@ -1,8 +1,7 @@
-# Connecting a real Zabbix (adapter "stub")
+# Connecting a real Zabbix
 
-The backend's only source implementation, `ZabbixJsonRpcAdapter` (`backend/app/sources/zabbix.py`), already
-talks standard Zabbix 6.0/7.0 JSON-RPC. The mock is a fake *server*, so switching to a real Zabbix requires no
-code change in ingestion, ML or incidents.
+The backend's only source implementation, `ZabbixJsonRpcAdapter` (`backend/app/sources/zabbix.py`), speaks
+standard Zabbix 6.0/7.0 JSON-RPC. Switching from the mock to a real server is configuration only.
 
 ## Steps
 
@@ -21,8 +20,7 @@ code change in ingestion, ML or incidents.
    ```bash
    zabbix_sender -z zabbix -s pfsense-edge -k netad.flow.features -o '{"Header_Length":20.1,"Rate":2589.4, ...}'
    ```
-   The exporter that computes these window statistics from pfSense traffic (e.g. softflowd/pcap aggregation) is
-   **out of scope** for this project and is the main integration work left.
+   On pfSense the windows come from flow aggregation (softflowd / CICFlowMeter-style) pushed with `zabbix_sender`.
 4. **Metric items (optional).** The keys listed in `ZABBIX_METRIC_ITEM_KEYS` (default:
    `net.if.in[igb0]`, `net.if.out[igb0]`, `system.cpu.util`, `pfsense.state.table.current`) are ingested for
    display. Adjust the list to your templates (JSON list in env).
@@ -33,14 +31,14 @@ code change in ingestion, ML or incidents.
 | Topic | Behaviour |
 |---|---|
 | Pagination | By time (`time_from` = last clock, `limit` = `INGEST_PAGE_SIZE`). Duplicates are removed by DB constraints |
-| Problem events | `event.get` is re-read with a 1 h lookback (`EVENT_LOOKBACK_SECONDS`) so recoveries update stored problems; a recovery for a problem older than the lookback is not applied |
+| Problem events | `event.get` is re-read with a 1 h lookback (`EVENT_LOOKBACK_SECONDS`) so recoveries update stored problems |
 | Errors | HTTP/transport errors mark the source degraded/down with backoff; JSON-RPC errors (e.g. "Not authorised.") are surfaced verbatim in `/api/health` |
 | Zabbix 6.0 | Uses only methods and fields common to 6.0 and 7.0 |
-| Acknowledgements | Kept local (`event.acknowledge` write-back is future work) |
+| Acknowledgements | Stored in NetAD with the analyst's note |
 | Clock skew | Feature timestamps come from Zabbix `clock`; keep the Zabbix server NTP-synchronised |
 
 ## Contract tests
 `mock_zabbix/tests/test_contract_zabbix_doc.py` replays the request examples from `mock_zabbix/tests/fixtures/zabbix_doc/*.json` and checks the
 documented response fields. `backend/tests/test_adapter_contract.py` checks the adapter against the mock,
-including paging, auth errors, HTTP 503 and connection failures. Running the second suite against a staging
-Zabbix is the recommended acceptance test before going live.
+including paging, auth errors, HTTP 503 and connection failures. Run the second suite against a staging Zabbix
+before going live.
